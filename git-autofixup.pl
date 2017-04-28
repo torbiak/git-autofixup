@@ -185,6 +185,7 @@ sub blame {
         next unless /^([0-9a-f]{40}) \d+ (\d+)/;
         $blame{$2} = $1;
     }
+    close($fh) or die "git blame: non-zero exit code";
     return \%blame;
 }
 
@@ -192,7 +193,7 @@ sub get_diff_hunks {
     my @cmd = ('git', 'diff', '--ignore-submodules');
     open(my $fh, '-|', @cmd) or die $!;
     my @hunks = parse_diffs($fh, keep_lines => 1);
-    close($fh) or die;
+    close($fh) or die "git diff: non-zero exit code";
     return @hunks;
 }
 
