@@ -178,16 +178,12 @@ sub startswith {
 
 sub blame {
     my $hunk = shift;
-    my $cmd = "git blame -s -l -L $hunk->{start},+$hunk->{count} HEAD $hunk->{file}";
+    my $cmd = "git blame --porcelain -L $hunk->{start},+$hunk->{count} HEAD $hunk->{file}";
     open(my $fh, '-|', $cmd) or die "git blame: $!\n";
     my %blame;
-    for (my $i = 0; $i < $hunk->{count}; $i++) {
-        my $line = <$fh>;
-        my ($sha) = split(' ', $line, 2);
-        if ($sha =~ /^\^/) {
-            next;
-        }
-        $blame{$i + $hunk->{start}} = $sha;
+    while (<$fh>) {
+        next unless /^([0-9a-f]{40}) \d+ (\d+)/;
+        $blame{$2} = $1;
     }
     return \%blame;
 }
