@@ -13,12 +13,12 @@ our $VERSION = 'v0.0.1';
 
 my ($verbose, $strict);
 
-my $usage =<<END;
+my $usage =<<'END';
 usage: git-autofixup [<options>] <upstream-revision>
 
 -h, --help     show help
 --version      show version
--v, --verbose  show more information
+-v, --verbose  increase verbosity (use up to 2 times)
 --strict       require added lines to be surrounded by the target commit
 END
 
@@ -67,7 +67,7 @@ sub parse_diffs {
 sub get_commits {
     my $rev = shift;
     my %commits;
-    for (qx(git log --format=%H:%s $rev..)) {
+    for (qx(git log --no-merges --format=%H:%s $rev..)) {
         chomp;
         my ($sha, $msg) = split ':', $_, 2;
         $commits{$sha} = $msg;
@@ -79,26 +79,19 @@ sub get_commits {
 sub get_sha_aliases {
     my $commits = shift;
     my %aliases;
-    for my $i (keys %$commits) {
-        my $msg = $commits->{$i};
-        next unless $msg =~ /^(?:fixup|squash)! (.*)/;
+    while (my ($sha, $summary) = each(%$commits)) {
+        next if $summary !~ /^(?:fixup|squash)! (.*)/;
         my $prefix = $1;
         if ($prefix =~ /^(?:(?:fixup|squash)! ){2}/) {
-            die "fixup commits for fixup commits aren't supported: $i";
+            die "fixup commits for fixup commits aren't supported: $sha";
         }
-
-        my @matches;
-        for my $j (keys %$commits) {
-            if (index($commits->{$j}, $1, 0) == 0) {
-                push @matches, $j;
-            }
-        }
+        my @matches = grep { startswith($commits->{$_}, $prefix) } keys(%$commits);
         if (@matches > 1) {
             die "ambiguous fixup commit target: multiple commit summaries start with: $prefix\n";
         } elsif (@matches == 0) {
-            die "no fixup target: $i";
+            die "no fixup target: $sha";
         } elsif (@matches == 1) {
-            $aliases{$i} = $matches[0];
+            $aliases{$sha} = $matches[0];
         }
     }
     return \%aliases;
@@ -108,82 +101,117 @@ sub get_sha_aliases {
 sub get_fixup_sha {
     my ($hunk, $sha_set, $sha_aliases) = @_;
     my $blame = blame($hunk);
+    my $blame_indexes = get_blame_indexes($hunk);
     my $target;
-
-    print Dumper($blame); # TODO: remove
+    if ($verbose > 1) {
+        print_hunk_blamediff($hunk, $sha_set, $blame, $blame_indexes);
+    }
 
     my $is_valid_target = sub {
         my $sha = shift;
-        unless (exists($sha_set->{$sha})) {
-            return undef;
-        }
+        return if !exists($sha_set->{$sha});
         $target //= $sha;
         if ($sha ne $target) {
-            if ($verbose) {
-                print STDERR "multiple fixup targets for $hunk->{file}, $hunk->{header}";
-            }
-            return undef;
+            $verbose && print STDERR "multiple fixup targets for $hunk->{file}, $hunk->{header}";
+            return;
         }
         return 1;
     };
 
     my $resolve = sub {
         my $sha = shift;
-        return '' unless $sha;
+        return '' if !$sha;
         return $sha_aliases->{$sha} // $sha;
     };
 
-    my $bi = $hunk->{start}; # blame index
     my $diff = $hunk->{lines};
     for (my $di = 0; $di < @$diff; $di++) { # diff index
+        my $bi = $blame_indexes->[$di];
         my $line = $diff->[$di];
         if (startswith($line, '-')) {
-            my $sha = &$resolve($blame->{$bi});
-            &$is_valid_target($sha) or return undef;
-            $bi++;
-            next;
+            my $sha = &$resolve($blame->{$bi}{sha});
+            &$is_valid_target($sha) or return;
         } elsif (startswith($line, '+')) {
-            my $above = &$resolve($blame->{$bi-1});
-            my $below = &$resolve($blame->{$bi});
-            if ($sha_set->{$above} and $sha_set->{$below}) {
-                $above eq $below or return undef;
-                &$is_valid_target($above) or return undef;
-            } elsif (!$strict and $sha_set->{$above}) {
-                &$is_valid_target($above) or return undef;
-            } elsif (!$strict and $sha_set->{$below}) {
-                &$is_valid_target($below) or return undef;
+            my $above = &$resolve($blame->{$bi-1}{sha});
+            my $below = &$resolve($blame->{$bi}{sha});
+            if ($sha_set->{$above} && $sha_set->{$below}) {
+                $above eq $below or return;
+                &$is_valid_target($above) or return;
+            } elsif (!$strict && $sha_set->{$above}) {
+                &$is_valid_target($above) or return;
+            } elsif (!$strict && $sha_set->{$below}) {
+                &$is_valid_target($below) or return;
             }
-            while ($di < @$diff-1 and startswith($diff->[$di+1], '+')) {
+            while ($di < @$diff-1 && startswith($diff->[$di+1], '+')) {
                 $di++;
             }
-            # Added lines don't show up in `git blame HEAD`, so the blame index
-            # isn't incremented.
-            next;
-        } elsif (startswith($line, ' ')) {
-            $bi++;
-            next;
-        } else {
-            die "unexpected diff line: $line";
         }
     }
-    unless ($target) {
-        $verbose and print "no fixup targets found for $hunk->{file}, $hunk->{header}";
+    if (!$target) {
+        $verbose && print "no fixup targets found for $hunk->{file}, $hunk->{header}";
     }
     return $target;
 }
 
 sub startswith {
-    index($_[0], $_[1], 0) == 0;
+    my ($haystack, $needle) = @_;
+    return index($haystack, $needle, 0) == 0;
+}
+
+# Map lines in a hunk's diff to the corresponding `git blame HEAD` output.
+sub get_blame_indexes {
+    my $hunk = shift;
+    my @indexes;
+    my $bi = $hunk->{start};
+    for (my $di = 0; $di < @{$hunk->{lines}}; $di++) {
+        push @indexes, $bi;
+        my $first = substr($hunk->{lines}[$di], 0, 1);
+        if ($first eq '-' or $first eq ' ') {
+            $bi++;
+        }
+        # Don't increment $bi for added lines.
+    }
+    return \@indexes;
+}
+
+sub print_hunk_blamediff {
+    my ($hunk, $sha_set, $blame, $blame_indexes) = @_;
+    my $format = "%-8.8s|%4.4s|%-30.30s|%-30.30s\n";
+    print STDERR "hunk blamediff: $hunk->{file}, $hunk->{header}";
+    for (my $i = 0; $i < @{$hunk->{lines}}; $i++) {
+        my $line = $hunk->{lines}[$i];
+        my $bi = $blame_indexes->[$i];
+        my $sha = $blame->{$bi}{sha};
+        my $display_sha = $sha;
+        if (!defined($sha)) {
+            $display_sha = ''; # For added lines.
+        } elsif (!exists($sha_set->{$sha})) {
+            # For lines from before the given upstream revision.
+            $display_sha = '^';
+        }
+        if (startswith($line, '+')) {
+            printf STDERR $format, $display_sha, '', '', substr($line, 0, -1);
+        } else {
+            printf STDERR $format, $display_sha, $bi, substr($blame->{$bi}{text}, 0, -1), substr($line, 0, -1);
+        }
+    }
+    print STDERR "\n";
+    return;
 }
 
 sub blame {
     my $hunk = shift;
     my $cmd = "git blame --porcelain -L $hunk->{start},+$hunk->{count} HEAD $hunk->{file}";
-    open(my $fh, '-|', $cmd) or die "git blame: $!\n";
     my %blame;
+    my ($sha, $line);
+    open(my $fh, '-|', $cmd) or die "git blame: $!\n";
     while (<$fh>) {
-        next unless /^([0-9a-f]{40}) \d+ (\d+)/;
-        $blame{$2} = $1;
+        if (/^([0-9a-f]{40}) \d+ (\d+)/) {
+             ($sha, $line) = ($1, $2);
+        }
+        if (startswith($_, "\t")) {
+            $blame{$line} = {sha => $sha, text => substr($_, 1)};
+        }
     }
     close($fh) or die "git blame: non-zero exit code";
     return \%blame;
@@ -201,7 +229,7 @@ sub commit_fixup {
     my ($sha, $hunks) = @_;
     open my $fh, '|-', 'git apply --cached -' or die "git apply: $!\n";
     for my $hunk (@$hunks) {
-        print($fh
+        print({$fh}
             "--- a/$hunk->{file}\n",
             "+++ a/$hunk->{file}\n",
             $hunk->{header},
@@ -210,6 +238,7 @@ sub commit_fixup {
     }
     close $fh or die "git apply: non-zero exit code\n";
     system(qw(git commit), "--fixup=$sha") == 0 or die "git commit: $!\n";
+    return;
 }
 
 sub is_index_dirty {
@@ -230,7 +259,7 @@ sub main {
     GetOptions(
         'help|h' => \$help,
         'version' => \$show_version,
-        'verbose|v' => \$verbose,
+        'verbose|v+' => \$verbose,
         'strict' => \$strict,
     ) or return 1;
     if ($help) {
@@ -260,7 +289,7 @@ sub main {
     my %sha2hunks;
     for my $hunk (@hunks) {
         my $sha = get_fixup_sha $hunk, $sha2summary, $sha_aliases;
-        next unless $sha;
+        next if !$sha;
         push @{$sha2hunks{$sha}}, $hunk;
     }
     print Dumper(\%sha2hunks);
