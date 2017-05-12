@@ -9,7 +9,7 @@ use Data::Dumper;
 $Data::Dumper::Terse = 1;
 $Data::Dumper::Useqq = 1;
 
-our $VERSION = 'v0.0.1';
+our $VERSION = 0.001000; # X.00Y00Z
 
 my ($verbose, $strict);
 
@@ -23,32 +23,33 @@ usage: git-autofixup [<options>] <upstream-revision>
 END
 
 # Parse hunks out of `git diff` output. Return an array of hunk hashrefs.
-sub parse_diffs {
+sub parse_hunks {
     my $fh = shift;
     my ($file_a, $file_b);
     my @hunks;
-    while (<$fh>) {
-        if (/^--- (.*)/) {
+    while (my $line = <$fh>) {
+        if ($line =~ /^--- (.*)/) {
             $file_a = $1;
-            next;
-        }
-        if (/^\+\+\+ (.*)/) {
+        } elsif ($line =~ /^\+\+\+ (.*)/) {
             $file_b = $1;
-            next;
-        }
-        if (/^@@ -(\d+)(?:,(\d+))? \+(?:\d+)(?:,(?:\d+))? @@ ?(.*)/) {
-            my $header = $_;
-            s#^[ab]/## for ($file_a, $file_b);
-            # Ignore creations and deletions.
-            next if $file_a ne $file_b;
+        } elsif ($line =~ /^@@ -(\d+)(?:,(\d+))? \+\d+(?:,\d+)? @@/) {
+            my $header = $line;
+
+            for ($file_a, $file_b) {
+                s#^[ab]/##;
+            }
+
+            next if $file_a ne $file_b; # Ignore creations and deletions.
+
             my $lines = [];
             while (1) {
-                $_ = <$fh>;
-                if (!defined($_) || /^[^ +-]/) {
+                $line = <$fh>;
+                if (!defined($line) || $line =~ /^[^ +-]/) {
                     last;
                 }
-                push @$lines, $_;
+                push @{$lines}, $line;
             }
+
             push(@hunks, {
                 file => $file_a,
                 start => $1,
@@ -58,7 +59,7 @@ sub parse_diffs {
             });
             # The next line after a hunk could be a header for the next commit
             # or hunk.
-            redo if defined($_);
+            redo if defined($line);
         }
     }
     return @hunks;
@@ -77,15 +78,15 @@ sub get_commits {
 
 # Return targets of fixup!/squash! commits.
 sub get_sha_aliases {
-    my $commits = shift;
+    my $summary_for = shift;
     my %aliases;
-    while (my ($sha, $summary) = each(%$commits)) {
+    while (my ($sha, $summary) = each(%{$summary_for})) {
         next if $summary !~ /^(?:fixup|squash)! (.*)/;
         my $prefix = $1;
         if ($prefix =~ /^(?:(?:fixup|squash)! ){2}/) {
             die "fixup commits for fixup commits aren't supported: $sha";
         }
-        my @matches = grep { startswith($commits->{$_}, $prefix) } keys(%$commits);
+        my @matches = grep {startswith($summary_for->{$_}, $prefix)} keys(%{$summary_for});
         if (@matches > 1) {
             die "ambiguous fixup commit target: multiple commit summaries start with: $prefix\n";
         } elsif (@matches == 0) {
@@ -112,7 +113,7 @@ sub get_fixup_sha {
         return if !exists($sha_set->{$sha});
         $target //= $sha;
         if ($sha ne $target) {
-            $verbose && print STDERR "multiple fixup targets for $hunk->{file}, $hunk->{header}";
+            $verbose && print {STDERR} "multiple fixup targets for $hunk->{file}, $hunk->{header}";
             return;
         }
         return 1;
@@ -177,7 +178,7 @@ sub get_blame_indexes {
 sub print_hunk_blamediff {
     my ($hunk, $sha_set, $blame, $blame_indexes) = @_;
     my $format = "%-8.8s|%4.4s|%-30.30s|%-30.30s\n";
-    print STDERR "hunk blamediff: $hunk->{file}, $hunk->{header}";
+    print {STDERR} "hunk blamediff: $hunk->{file}, $hunk->{header}";
     for (my $i = 0; $i < @{$hunk->{lines}}; $i++) {
         my $line = $hunk->{lines}[$i];
         my $bi = $blame_indexes->[$i];
@@ -190,21 +191,31 @@ sub print_hunk_blamediff {
             $display_sha = '^';
         }
         if (startswith($line, '+')) {
-            printf STDERR $format, $display_sha, '', '', substr($line, 0, -1);
+            printf STDERR $format, $display_sha, '', '', rtrim($line);
         } else {
-            printf STDERR $format, $display_sha, $bi, substr($blame->{$bi}{text}, 0, -1), substr($line, 0, -1);
+            printf STDERR $format, $display_sha, $bi, rtrim($blame->{$bi}{text}), rtrim($line);
         }
     }
-    print STDERR "\n";
+    print {STDERR} "\n";
     return;
+}
+
+sub rtrim {
+    my $s = shift;
+    $s =~ s/\s+\z//;
+    return $s;
 }
 
 sub blame {
     my $hunk = shift;
-    my $cmd = "git blame --porcelain -L $hunk->{start},+$hunk->{count} HEAD $hunk->{file}";
+    my @cmd = (
+        'git', 'blame', '--porcelain',
+        '-L' => "$hunk->{start},+$hunk->{count}",
+        'HEAD',
+        "$hunk->{file}");
     my %blame;
     my ($sha, $line);
-    open(my $fh, '-|', $cmd) or die "git blame: $!\n";
+    open(my $fh, '-|', @cmd) or die "git blame: $!\n";
     while (<$fh>) {
         if (/^([0-9a-f]{40}) \d+ (\d+)/) {
              ($sha, $line) = ($1, $2);
@@ -218,9 +229,9 @@ sub blame {
 }
 
 sub get_diff_hunks {
-    my @cmd = ('git', 'diff', '--ignore-submodules');
+    my @cmd = qw(git diff --ignore-submodules);
     open(my $fh, '-|', @cmd) or die $!;
-    my @hunks = parse_diffs($fh, keep_lines => 1);
+    my @hunks = parse_hunks($fh, keep_lines => 1);
     close($fh) or die "git diff: non-zero exit code";
     return @hunks;
 }
@@ -228,7 +239,7 @@ sub get_diff_hunks {
 sub commit_fixup {
     my ($sha, $hunks) = @_;
     open my $fh, '|-', 'git apply --cached -' or die "git apply: $!\n";
-    for my $hunk (@$hunks) {
+    for my $hunk (@{$hunks}) {
         print({$fh}
             "--- a/$hunk->{file}\n",
             "+++ a/$hunk->{file}\n",
@@ -237,7 +248,7 @@ sub commit_fixup {
         );
     }
     close $fh or die "git apply: non-zero exit code\n";
-    system(qw(git commit), "--fixup=$sha") == 0 or die "git commit: $!\n";
+    system('git', 'commit', "--fixup=$sha") == 0 or die "git commit: $!\n";
     return;
 }
 
@@ -276,27 +287,31 @@ sub main {
     qx(git rev-parse --verify ${upstream}^{commit});
     $? == 0 or die "Bad revision.\n";
 
-    if (is_index_dirty) {
+    if (is_index_dirty()) {
         die "There are staged changes. Clean up the index and try again.\n";
     }
 
-    my @hunks = get_diff_hunks;
+    my @hunks = get_diff_hunks();
     print Dumper(\@hunks);
-    my $sha2summary = get_commits $upstream;
+    my $sha2summary = get_commits($upstream);
     print Dumper($sha2summary);
-    my $sha_aliases = get_sha_aliases $sha2summary;
+    my $sha_aliases = get_sha_aliases($sha2summary);
     print Dumper($sha_aliases);
     my %sha2hunks;
     for my $hunk (@hunks) {
-        my $sha = get_fixup_sha $hunk, $sha2summary, $sha_aliases;
+        my $sha = get_fixup_sha($hunk, $sha2summary, $sha_aliases);
         next if !$sha;
         push @{$sha2hunks{$sha}}, $hunk;
     }
     print Dumper(\%sha2hunks);
     for my $sha (keys %sha2hunks) {
-        commit_fixup $sha, $sha2hunks{$sha};
+        commit_fixup($sha, $sha2hunks{$sha});
     }
 
     return 0;
 }
-exit main();
+
+if (!caller()) {
+    exit main();
+}
+1;
