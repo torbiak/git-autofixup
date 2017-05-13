@@ -113,7 +113,9 @@ sub get_fixup_sha {
         return if !exists($sha_set->{$sha});
         $target //= $sha;
         if ($sha ne $target) {
-            $verbose && print {STDERR} "multiple fixup targets for $hunk->{file}, $hunk->{header}";
+            if ($verbose) {
+                print STDERR "multiple fixup targets for $hunk->{file}, $hunk->{header}";
+            }
             return;
         }
         return 1;
@@ -178,7 +180,7 @@ sub get_blame_indexes {
 sub print_hunk_blamediff {
     my ($hunk, $sha_set, $blame, $blame_indexes) = @_;
     my $format = "%-8.8s|%4.4s|%-30.30s|%-30.30s\n";
-    print {STDERR} "hunk blamediff: $hunk->{file}, $hunk->{header}";
+    print STDERR "hunk blamediff: $hunk->{file}, $hunk->{header}";
     for (my $i = 0; $i < @{$hunk->{lines}}; $i++) {
         my $line = $hunk->{lines}[$i];
         my $bi = $blame_indexes->[$i];
@@ -196,7 +198,7 @@ sub print_hunk_blamediff {
             printf STDERR $format, $display_sha, $bi, rtrim($blame->{$bi}{text}), rtrim($line);
         }
     }
-    print {STDERR} "\n";
+    print STDERR "\n";
     return;
 }
 
