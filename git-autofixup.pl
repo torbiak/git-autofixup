@@ -65,7 +65,7 @@ sub parse_hunks {
     return @hunks;
 }
 
-sub get_commits {
+sub get_summary_for_commits {
     my $rev = shift;
     my %commits;
     for (qx(git log --no-merges --format=%H:%s $rev..)) {
@@ -98,10 +98,8 @@ sub get_sha_aliases {
     return \%aliases;
 }
 
-
 sub get_fixup_sha {
-    my ($hunk, $sha_set, $sha_aliases) = @_;
-    my $blame = blame($hunk);
+    my ($hunk, $blame, $sha_set, $sha_aliases) = @_;
     my $blame_indexes = get_blame_indexes($hunk);
     my $target;
     if ($verbose > 1) {
@@ -216,14 +214,14 @@ sub blame {
         'HEAD',
         "$hunk->{file}");
     my %blame;
-    my ($sha, $line);
+    my ($sha, $line_num);
     open(my $fh, '-|', @cmd) or die "git blame: $!\n";
-    while (<$fh>) {
-        if (/^([0-9a-f]{40}) \d+ (\d+)/) {
-             ($sha, $line) = ($1, $2);
+    while (my $line = <$fh>) {
+        if ($line =~ /^([0-9a-f]{40}) \d+ (\d+)/) {
+             ($sha, $line_num) = ($1, $2);
         }
-        if (startswith($_, "\t")) {
-            $blame{$line} = {sha => $sha, text => substr($_, 1)};
+        if (startswith($line, "\t")) {
+            $blame{$line_num} = {sha => $sha, text => substr($line, 1)};
         }
     }
     close($fh) or die "git blame: non-zero exit code";
@@ -235,7 +233,7 @@ sub get_diff_hunks {
     open(my $fh, '-|', @cmd) or die $!;
     my @hunks = parse_hunks($fh, keep_lines => 1);
     close($fh) or die "git diff: non-zero exit code";
-    return @hunks;
+    return wantarray ? @hunks : \@hunks;
 }
 
 sub commit_fixup {
@@ -257,14 +255,27 @@ sub commit_fixup {
 sub is_index_dirty {
     open(my $fh, '-|', 'git status --porcelain') or die "git status: $!\n";
     my $dirty;
-    while (<$fh>) {
-        if (/^[^?! ]/) {
+    while (my $line = <$fh>) {
+        if ($line =~ /^[^?! ]/) {
             $dirty = 1;
             last;
         }
     }
     close $fh or die "git status: non-zero exit code\n";
     return $dirty;
+}
+
+sub get_fixup_hunks_by_sha {
+    my ($hunks, $blame_for, $summary_for) = @_;
+    my $alias_for = get_sha_aliases($summary_for);
+    my %hunks_for;
+    for my $hunk (@{$hunks}) {
+        my $blame = $blame_for->{$hunk};
+        my $sha = get_fixup_sha($hunk, $blame, $summary_for, $alias_for);
+        next if !$sha;
+        push @{$hunks_for{$sha}}, $hunk;
+    }
+    return \%hunks_for;
 }
 
 sub main {
@@ -293,23 +304,13 @@ sub main {
         die "There are staged changes. Clean up the index and try again.\n";
     }
 
-    my @hunks = get_diff_hunks();
-    print Dumper(\@hunks);
-    my $sha2summary = get_commits($upstream);
-    print Dumper($sha2summary);
-    my $sha_aliases = get_sha_aliases($sha2summary);
-    print Dumper($sha_aliases);
-    my %sha2hunks;
-    for my $hunk (@hunks) {
-        my $sha = get_fixup_sha($hunk, $sha2summary, $sha_aliases);
-        next if !$sha;
-        push @{$sha2hunks{$sha}}, $hunk;
+    my $hunks = get_diff_hunks();
+    my $summary_for = get_summary_for_commits($upstream);
+    my %blame_for = map {$_ => blame($_)} @{$hunks};
+    my $hunks_for = get_fixup_hunks_by_sha($hunks, \%blame_for, $summary_for);
+    while (my ($sha, $fixup_hunks) = each %{$hunks_for}) {
+        commit_fixup($sha, $fixup_hunks);
     }
-    print Dumper(\%sha2hunks);
-    for my $sha (keys %sha2hunks) {
-        commit_fixup($sha, $sha2hunks{$sha});
-    }
-
     return 0;
 }
 
