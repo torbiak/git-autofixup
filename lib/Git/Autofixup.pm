@@ -1,4 +1,5 @@
 #!/bin/perl
+package Git::AutoFixup;
 use 5.008;  # In accordance with Git's CodingGuidelines.
 use strict;
 use warnings FATAL => 'all';
