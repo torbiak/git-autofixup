@@ -3,7 +3,7 @@ package Git::AutoFixup;
 use 5.008;  # In accordance with Git's CodingGuidelines.
 use strict;
 use warnings FATAL => 'all';
-use Getopt::Long qw(:config bundling);
+use Getopt::Long qw(GetOptionsFromArray :config bundling);
 
 # TODO: remove
 use Data::Dumper;
@@ -280,8 +280,11 @@ sub get_fixup_hunks_by_sha {
 }
 
 sub main {
+    my @args = @_;
     my ($help, $show_version);
-    GetOptions(
+    $verbose = 0;
+    $strict = undef;
+    GetOptionsFromArray(\@args,
         'help|h' => \$help,
         'version' => \$show_version,
         'verbose|v+' => \$verbose,
@@ -296,8 +299,8 @@ sub main {
         return 0;
     }
 
-    scalar @ARGV == 1 or die "No upstream revision given.\n";
-    my $upstream = shift @ARGV;
+    @args == 1 or die "No upstream revision given.\n";
+    my $upstream = shift @args;
     qx(git rev-parse --verify ${upstream}^{commit});
     $? == 0 or die "Bad revision.\n";
 
