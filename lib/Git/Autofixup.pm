@@ -104,7 +104,7 @@ sub get_fixup_sha {
     my $blame_indexes = get_blame_indexes($hunk);
     my $target;
     if ($verbose > 1) {
-        print_hunk_blamediff($hunk, $sha_set, $blame, $blame_indexes);
+        print_hunk_blamediff(*STDERR, $hunk, $sha_set, $blame, $blame_indexes);
     }
 
     my $is_valid_target = sub {
@@ -150,7 +150,7 @@ sub get_fixup_sha {
         }
     }
     if (!$target) {
-        $verbose && print "no fixup targets found for $hunk->{file}, $hunk->{header}";
+        $verbose && print STDERR "no fixup targets found for $hunk->{file}, $hunk->{header}";
     }
     return $target;
 }
@@ -177,27 +177,27 @@ sub get_blame_indexes {
 }
 
 sub print_hunk_blamediff {
-    my ($hunk, $sha_set, $blame, $blame_indexes) = @_;
+    my ($fh, $hunk, $sha_set, $blame, $blame_indexes) = @_;
     my $format = "%-8.8s|%4.4s|%-30.30s|%-30.30s\n";
-    print STDERR "hunk blamediff: $hunk->{file}, $hunk->{header}";
+    print {$fh} "hunk blamediff: $hunk->{file}, $hunk->{header}";
     for (my $i = 0; $i < @{$hunk->{lines}}; $i++) {
         my $line = $hunk->{lines}[$i];
         my $bi = $blame_indexes->[$i];
         my $sha = $blame->{$bi}{sha};
         my $display_sha = $sha;
-        if (!defined($sha)) {
+        if (startswith($line, '+')) { #!defined($sha)) {
             $display_sha = ''; # For added lines.
         } elsif (!exists($sha_set->{$sha})) {
             # For lines from before the given upstream revision.
             $display_sha = '^';
         }
         if (startswith($line, '+')) {
-            printf STDERR $format, $display_sha, '', '', rtrim($line);
+            printf {$fh} $format, $display_sha, '', '', rtrim($line);
         } else {
-            printf STDERR $format, $display_sha, $bi, rtrim($blame->{$bi}{text}), rtrim($line);
+            printf {$fh} $format, $display_sha, $bi, rtrim($blame->{$bi}{text}), rtrim($line);
         }
     }
-    print STDERR "\n";
+    print {$fh} "\n";
     return;
 }
 
