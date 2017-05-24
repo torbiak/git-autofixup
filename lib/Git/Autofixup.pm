@@ -1,25 +1,30 @@
 #!/usr/bin/perl
+package Git::Autofixup;
 use 5.008;  # In accordance with Git's CodingGuidelines.
 use strict;
 use warnings FATAL => 'all';
-use Getopt::Long qw(GetOptionsFromArray :config bundling);
 
-# TODO: remove
-use Data::Dumper;
-$Data::Dumper::Terse = 1;
-$Data::Dumper::Useqq = 1;
+use Getopt::Long qw(GetOptionsFromArray :config bundling);
+use List::Util qw(uniq);
 
 our $VERSION = 0.001000; # X.00Y00Z
 
-my ($verbose, $strict);
+my $verbose;
+
+# Strictness levels.
+my ($CONTEXT, $ADJACENT, $SURROUNDED) = (0..10);
 
 my $usage =<<'END';
 usage: git-autofixup [<options>] <upstream-revision>
 
--h, --help     show help
---version      show version
--v, --verbose  increase verbosity (use up to 2 times)
---strict       require added lines to be surrounded by the target commit
+-h, --help         show help
+--version          show version
+-v, --verbose      increase verbosity (use up to 2 times)
+-c N, --context N  set number of diff context lines
+-s N, --strict N   set strictness:
+    0: exactly one topic branch commit blamed in hunk context
+    1: changed lines adjacent to exactly one topic branch commit
+    2: changed lines surrounded by exactly one topic branch commit
 END
 
 # Parse hunks out of `git diff` output. Return an array of hunk hashrefs.
@@ -101,16 +106,32 @@ sub get_sha_aliases {
 }
 
 sub get_fixup_sha {
-    my ($hunk, $blame, $sha_set, $sha_aliases) = @_;
+    my ($hunk, $blame, $sha_set, $strict) = @_;
+    if ($strict == $CONTEXT) {
+        return get_context_fixup_sha($hunk, $blame, $sha_set);
+    } else {
+        return get_strict_fixup_sha($hunk, $blame, $sha_set, $strict);
+    }
+}
+
+sub get_context_fixup_sha {
+    my ($hunk, $blame, $sha_set) = @_;
+    my @blamed_shas = uniq(map {$_->{sha}} values(%{$blame}));
+    my @candidate_shas = grep {defined $sha_set->{$_}} @blamed_shas;
+    if (@candidate_shas != 1) {
+        return;
+    }
+    return $candidate_shas[0];
+}
+
+sub get_strict_fixup_sha {
+    my ($hunk, $blame, $sha_set, $strict) = @_;
     my $blame_indexes = get_blame_indexes($hunk);
     my $target;
-    if ($verbose > 1) {
-        print_hunk_blamediff(*STDERR, $hunk, $sha_set, $blame, $blame_indexes);
-    }
 
     my $is_valid_target = sub {
         my $sha = shift;
-        return if !exists($sha_set->{$sha});
+        return if !defined($sha_set->{$sha});
         $target //= $sha;
         if ($sha ne $target) {
             if ($verbose) {
@@ -121,37 +142,40 @@ sub get_fixup_sha {
         return 1;
     };
 
-    my $resolve = sub {
-        my $sha = shift;
-        return '' if !$sha;
-        return $sha_aliases->{$sha} // $sha;
-    };
-
     my $diff = $hunk->{lines};
-    for (my $di = 0; $di < @$diff; $di++) { # diff index
+    for (my $di = 0; $di < @{$diff}; $di++) { # diff index
         my $bi = $blame_indexes->[$di];
         my $line = $diff->[$di];
         if (startswith($line, '-')) {
-            my $sha = &$resolve($blame->{$bi}{sha});
+            my $sha = $blame->{$bi}{sha};
             &$is_valid_target($sha) or return;
         } elsif (startswith($line, '+')) {
-            my $above = &$resolve($blame->{$bi-1}{sha});
-            my $below = &$resolve($blame->{$bi}{sha});
-            if ($sha_set->{$above} && $sha_set->{$below}) {
-                $above eq $below or return;
-                &$is_valid_target($above) or return;
-            } elsif (!$strict && $sha_set->{$above}) {
-                &$is_valid_target($above) or return;
-            } elsif (!$strict && $sha_set->{$below}) {
-                &$is_valid_target($below) or return;
+            my @lines;
+            if ($di > 0) {
+                push @lines, $bi-1;
             }
+            if (defined $blame->{$bi}) {
+                push @lines, $bi;
+            }
+            my @adjacent_shas = uniq(map {$_->{sha}} @{$blame}{@lines});
+            my @target_shas = grep {defined $sha_set->{$_}} @adjacent_shas;
+            # Note that lines at the beginning or end of a file can be
+            # "surrounded" by a single line.
+            my $is_surrounded = @target_shas > 0
+                && @target_shas == @adjacent_shas
+                && $target_shas[0] eq $target_shas[-1];
+            my $is_adjacent = @target_shas == 1;
+            if (!$is_adjacent || ($strict >= $SURROUNDED && !$is_surrounded)) {
+                return;
+            }
+            &$is_valid_target($target_shas[0]) or return;
             while ($di < @$diff-1 && startswith($diff->[$di+1], '+')) {
                 $di++;
             }
         }
     }
-    if (!$target) {
-        $verbose && print STDERR "no fixup targets found for $hunk->{file}, $hunk->{header}";
+    if ($verbose && !$target) {
+        print STDERR "no fixup targets found for $hunk->{file}, $hunk->{header}\n";
     }
     return $target;
 }
@@ -184,11 +208,11 @@ sub print_hunk_blamediff {
     for (my $i = 0; $i < @{$hunk->{lines}}; $i++) {
         my $line = $hunk->{lines}[$i];
         my $bi = $blame_indexes->[$i];
-        my $sha = $blame->{$bi}{sha};
-        my $display_sha = $sha;
-        if (startswith($line, '+')) { #!defined($sha)) {
+        my $sha = defined $blame->{$bi} ? $blame->{$bi}{sha} : undef;
+        my $display_sha = $sha // q{};
+        if (startswith($line, '+')) {
             $display_sha = ''; # For added lines.
-        } elsif (!exists($sha_set->{$sha})) {
+        } elsif (defined($sha) && !defined($sha_set->{$sha})) {
             # For lines from before the given upstream revision.
             $display_sha = '^';
         }
@@ -209,7 +233,7 @@ sub rtrim {
 }
 
 sub blame {
-    my $hunk = shift;
+    my ($hunk, $alias_for) = @_;
     my @cmd = (
         'git', 'blame', '--porcelain',
         '-L' => "$hunk->{start},+$hunk->{count}",
@@ -223,6 +247,9 @@ sub blame {
              ($sha, $line_num) = ($1, $2);
         }
         if (startswith($line, "\t")) {
+            if (defined $alias_for->{$sha}) {
+                $sha = $alias_for->{$sha};
+            }
             $blame{$line_num} = {sha => $sha, text => substr($line, 1)};
         }
     }
@@ -231,7 +258,8 @@ sub blame {
 }
 
 sub get_diff_hunks {
-    my @cmd = qw(git diff --ignore-submodules);
+    my $num_context_lines = shift;
+    my @cmd = (qw(git diff --ignore-submodules), "-U$num_context_lines");
     open(my $fh, '-|', @cmd) or die $!;
     my @hunks = parse_hunks($fh, keep_lines => 1);
     close($fh) or die "git diff: non-zero exit code";
@@ -240,7 +268,7 @@ sub get_diff_hunks {
 
 sub commit_fixup {
     my ($sha, $hunks) = @_;
-    open my $fh, '|-', 'git apply --cached -' or die "git apply: $!\n";
+    open my $fh, '|-', 'git apply --unidiff-zero --cached -' or die "git apply: $!\n";
     for my $hunk (@{$hunks}) {
         print({$fh}
             "--- a/$hunk->{file}\n",
@@ -268,12 +296,14 @@ sub is_index_dirty {
 }
 
 sub get_fixup_hunks_by_sha {
-    my ($hunks, $blame_for, $summary_for) = @_;
-    my $alias_for = get_sha_aliases($summary_for);
+    my ($hunks, $blame_for, $summary_for, $strict) = @_;
     my %hunks_for;
     for my $hunk (@{$hunks}) {
         my $blame = $blame_for->{$hunk};
-        my $sha = get_fixup_sha($hunk, $blame, $summary_for, $alias_for);
+        if ($verbose > 1) {
+            print_hunk_blamediff(*STDERR, $hunk, $summary_for, $blame, get_blame_indexes($hunk));
+        }
+        my $sha = get_fixup_sha($hunk, $blame, $summary_for, $strict);
         next if !$sha;
         push @{$hunks_for{$sha}}, $hunk;
     }
@@ -282,14 +312,18 @@ sub get_fixup_hunks_by_sha {
 
 sub main {
     my @args = @_;
-    my ($help, $show_version);
+
     $verbose = 0;
-    $strict = undef;
+    my $num_context_lines = 3;
+    my $strict = $CONTEXT;
+
+    my ($help, $show_version);
     GetOptionsFromArray(\@args,
         'help|h' => \$help,
         'version' => \$show_version,
         'verbose|v+' => \$verbose,
-        'strict' => \$strict,
+        'strict|s=i' => \$strict,
+        'context|c=i' => \$num_context_lines,
     ) or return 1;
     if ($help) {
         print $usage;
@@ -305,14 +339,21 @@ sub main {
     qx(git rev-parse --verify ${upstream}^{commit});
     $? == 0 or die "Bad revision.\n";
 
+    if ($num_context_lines < 0) {
+        die "invalid number of context lines: $num_context_lines\n";
+    }
+    $strict < 0 and die "invalid strictness level: $strict\n";
+
+
     if (is_index_dirty()) {
         die "There are staged changes. Clean up the index and try again.\n";
     }
 
-    my $hunks = get_diff_hunks();
+    my $hunks = get_diff_hunks($num_context_lines);
     my $summary_for = get_summary_for_commits($upstream);
-    my %blame_for = map {$_ => blame($_)} @{$hunks};
-    my $hunks_for = get_fixup_hunks_by_sha($hunks, \%blame_for, $summary_for);
+    my $alias_for = get_sha_aliases($summary_for);
+    my %blame_for = map {$_ => blame($_, $alias_for)} @{$hunks};
+    my $hunks_for = get_fixup_hunks_by_sha($hunks, \%blame_for, $summary_for, $strict);
     while (my ($sha, $fixup_hunks) = each %{$hunks_for}) {
         commit_fixup($sha, $fixup_hunks);
     }
