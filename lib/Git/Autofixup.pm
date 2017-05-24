@@ -79,8 +79,10 @@ sub get_summary_for_commits {
 # Return targets of fixup!/squash! commits.
 sub get_sha_aliases {
     my $summary_for = shift;
+    my @candidates = keys(%{$summary_for});
     my %aliases;
-    while (my ($sha, $summary) = each(%{$summary_for})) {
+    for my $sha (keys(%{$summary_for})) {
+        my $summary = $summary_for->{$sha};
         next if $summary !~ /^(?:fixup|squash)! (.*)/;
         my $prefix = $1;
         if ($prefix =~ /^(?:(?:fixup|squash)! ){2}/) {
