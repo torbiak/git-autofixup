@@ -8,7 +8,7 @@ use Carp qw(croak);
 
 use File::pushd;
 
-use Git::Autofixup;
+require 'git-autofixup';
 
 use Data::Dumper;
 $Data::Dumper::Terse = 1;
@@ -154,8 +154,8 @@ sub get_revision_sha {
 }
 
 sub autofixup {
-    print "# autofixup\n";
-    Git::Autofixup::main(@_) == 0 or die "autofixup: nonzero exit";
+    print "# git-autofixup\n";
+    main(@_) == 0 or die "git-autofixup: nonzero exit";
 }
 
 

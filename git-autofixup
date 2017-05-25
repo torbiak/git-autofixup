@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-package Git::Autofixup;
-use 5.008;  # In accordance with Git's CodingGuidelines.
+package main;
+use 5.008004;  # In accordance with Git's CodingGuidelines.
 use strict;
 use warnings FATAL => 'all';
 
@@ -369,7 +369,7 @@ if (!caller()) {
 
 =head1 NAME
 
-git-autofixup - create fixup commits for topic branches
+App::Git::Autofixup - create fixup commits for topic branches
 
 =head1 SYNOPSIS
 
@@ -428,7 +428,7 @@ Set how strict C<git-autofixup> is about assigning hunks to fixup commits. Stric
 
 =head1 INSTALLATION
 
-If cpan is available, run C<cpan Git::Autofixup>. Otherwise, copy git-autofixup.pm to a directory in PATH, rename it to git-autofixup, and ensure it has execute permissions.
+If cpan is available, run C<cpan -i App::Git::Autofixup>. Otherwise, copy git-autofixup to a directory in C<PATH> and ensure it has execute permissions.
 
 Git is distributed with Perl 5 for platforms not expected to already have it installed, but the last time I tried using cpan in "Git Bash" on Windows it didn't work (git version 2.12.2.windows.2). This script has no dependencies outside of the standard library, so it is hoped that it works on any platform that Git does without much trouble.
 
