@@ -55,7 +55,7 @@ Change the number of context lines C<git diff> uses around hunks. Default: 3. Th
 
 =item -s N, --strict N
 
-Set how strict F<git-autofixup> is about assigning hunks to fixup commits. Strictness levels are described under DESCRIPTION.
+Set how strict F<git-autofixup> is about assigning hunks to fixup commits. Default: 0. Strictness levels are described under DESCRIPTION.
 
 =back
 

@@ -19,8 +19,8 @@ usage: git-autofixup [<options>] <upstream-revision>
 -h, --help         show help
 --version          show version
 -v, --verbose      increase verbosity (use up to 2 times)
--c N, --context N  set number of diff context lines
--s N, --strict N   set strictness:
+-c N, --context N  set number of diff context lines (default 3)
+-s N, --strict N   set strictness (default 0):
     0: exactly one topic branch commit blamed in hunk context
     1: changed lines adjacent to exactly one topic branch commit
     2: changed lines surrounded by exactly one topic branch commit
@@ -448,7 +448,7 @@ Change the number of context lines C<git diff> uses around hunks. Default: 3. Th
 
 =item -s N, --strict N
 
-Set how strict F<git-autofixup> is about assigning hunks to fixup commits. Strictness levels are described under DESCRIPTION.
+Set how strict F<git-autofixup> is about assigning hunks to fixup commits. Default: 0. Strictness levels are described under DESCRIPTION.
 
 =back
 
