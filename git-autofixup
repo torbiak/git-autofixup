@@ -7,7 +7,7 @@ use warnings FATAL => 'all';
 use Pod::Usage;
 use Getopt::Long qw(GetOptionsFromArray :config bundling);
 
-our $VERSION = 0.001000; # X.00Y00Z
+our $VERSION = 0.001001; # X.00Y00Z
 
 my $verbose;
 
