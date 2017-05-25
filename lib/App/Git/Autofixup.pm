@@ -1,4 +1,4 @@
-package App::GitAutofixup;
+package App::Git::Autofixup;
 
 our $VERSION = 0.001000;
 
