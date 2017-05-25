@@ -45,6 +45,10 @@ Show help.
 
 Show version.
 
+=item --man
+
+Show manpage.
+
 =item -v, --verbose
 
 Increase verbosity. Can be used up to two times.

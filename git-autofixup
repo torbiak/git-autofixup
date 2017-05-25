@@ -4,6 +4,7 @@ use 5.008004;  # In accordance with Git's CodingGuidelines.
 use strict;
 use warnings FATAL => 'all';
 
+use Pod::Usage;
 use Getopt::Long qw(GetOptionsFromArray :config bundling);
 
 our $VERSION = 0.001000; # X.00Y00Z
@@ -18,6 +19,7 @@ usage: git-autofixup [<options>] <upstream-revision>
 
 -h, --help         show help
 --version          show version
+--man              show manpage
 -v, --verbose      increase verbosity (use up to 2 times)
 -c N, --context N  set number of diff context lines (default 3)
 -s N, --strict N   set strictness (default 0):
@@ -337,10 +339,12 @@ sub main {
     $verbose = 0;
     my $num_context_lines = 3;
     my $strict = $CONTEXT;
+    my $man;
 
     my ($help, $show_version);
     GetOptionsFromArray(\@args,
         'help|h' => \$help,
+        'man' => \$man,
         'version' => \$show_version,
         'verbose|v+' => \$verbose,
         'strict|s=i' => \$strict,
@@ -353,6 +357,9 @@ sub main {
     if ($show_version) {
         print "$VERSION\n";
         return 0;
+    }
+    if ($man) {
+        pod2usage(-exitval => 0, -verbose => 2);
     }
 
     @args == 1 or die "No upstream revision given.\n";
@@ -437,6 +444,10 @@ Show help.
 =item --version
 
 Show version.
+
+=item --man
+
+Show manpage.
 
 =item -v, --verbose
 
