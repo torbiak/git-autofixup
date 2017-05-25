@@ -362,5 +362,28 @@ index c1827f0..b792f74 100644
 +a3
 }});
 
+test_autofixup({
+    name => "removed line gets autofixed when context=0",
+    topic_commits => [{a => "a1\na2\n"}],
+    unstaged => {a => "a1\n"},
+    autofixup_opts => ['-c' => 0],
+    log_want => q{fixup! commit0
+
+diff --git a/a b/a
+index 0016606..da0f8ed 100644
+--- a/a
++++ b/a
+@@ -1,2 +1 @@
+ a1
+-a2
+}});
+
+test_autofixup({
+    name => "added line is ignored when context=0",
+    topic_commits => [{a => "a1\n"}],
+    unstaged => {a => "a1\na2\n"},
+    autofixup_opts => ['-c' => 0],
+    log_want => q{},
+});
 
 done_testing();

@@ -151,7 +151,7 @@ sub get_strict_fixup_sha {
             &$is_valid_target($sha) or return;
         } elsif (startswith($line, '+')) {
             my @lines;
-            if ($di > 0) {
+            if ($di > 0 && defined $blame->{$bi-1}) {
                 push @lines, $bi-1;
             }
             if (defined $blame->{$bi}) {
@@ -206,21 +206,35 @@ sub print_hunk_blamediff {
     my $format = "%-8.8s|%4.4s|%-30.30s|%-30.30s\n";
     print {$fh} "hunk blamediff: $hunk->{file}, $hunk->{header}";
     for (my $i = 0; $i < @{$hunk->{lines}}; $i++) {
-        my $line = $hunk->{lines}[$i];
+        my $line_r = $hunk->{lines}[$i];
         my $bi = $blame_indexes->[$i];
         my $sha = defined $blame->{$bi} ? $blame->{$bi}{sha} : undef;
+
         my $display_sha = $sha // q{};
-        if (startswith($line, '+')) {
-            $display_sha = ''; # For added lines.
-        } elsif (defined($sha) && !defined($sha_set->{$sha})) {
+        my $display_bi = $bi;
+        if (startswith($line_r, '+')) {
+            $display_sha = q{}; # For added lines.
+            $display_bi = q{};
+        }
+        if (defined($sha) && !defined($sha_set->{$sha})) {
             # For lines from before the given upstream revision.
             $display_sha = '^';
         }
-        if (startswith($line, '+')) {
-            printf {$fh} $format, $display_sha, '', '', rtrim($line);
-        } else {
-            printf {$fh} $format, $display_sha, $bi, rtrim($blame->{$bi}{text}), rtrim($line);
+
+        my $line_l = '';
+        if (defined $blame->{$bi}) {
+            $line_l = $blame->{$bi}{text};
         }
+
+        for ($line_l, $line_r) {
+            # For the table to line up, tabs need to be converted to a string of fixed width.
+            s/\t/^I/g;
+            # Remove trailing newlines and carriage returns. If more trailing
+            # whitespace is removed, that's fine.
+            $_ = rtrim($_);
+        }
+
+        printf {$fh} $format, $display_sha, $bi, $line_l, $line_r;
     }
     print {$fh} "\n";
     return;
@@ -234,6 +248,9 @@ sub rtrim {
 
 sub blame {
     my ($hunk, $alias_for) = @_;
+    if ($hunk->{count} == 0) {
+        return {};
+    }
     my @cmd = (
         'git', 'blame', '--porcelain',
         '-L' => "$hunk->{start},+$hunk->{count}",
@@ -342,7 +359,12 @@ sub main {
     if ($num_context_lines < 0) {
         die "invalid number of context lines: $num_context_lines\n";
     }
-    $strict < 0 and die "invalid strictness level: $strict\n";
+
+    if ($strict < 0) {
+        die "invalid strictness level: $strict\n";
+    } elsif ($strict > 0 && $num_context_lines == 0) {
+        die "strict hunk assignment requires context\n";
+    }
 
 
     if (is_index_dirty()) {
