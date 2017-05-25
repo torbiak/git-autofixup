@@ -330,7 +330,7 @@ index 125d560..cc1aa32 100644
 +a3b
 }});
 test_autofixup_strict({
-    name => 'no fixups are created for hunks changing lines blamed by upstream',
+    name => 'no fixups are created for hunks changing lines blamed by upstream if strict > 0',
     # This depends on the number of context lines kept when creating diffs. git
     # keeps 3 by default.
     strict => [1..2],
