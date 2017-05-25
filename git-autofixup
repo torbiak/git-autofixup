@@ -5,7 +5,6 @@ use strict;
 use warnings FATAL => 'all';
 
 use Getopt::Long qw(GetOptionsFromArray :config bundling);
-use List::Util qw(uniq);
 
 our $VERSION = 0.001000; # X.00Y00Z
 
@@ -122,6 +121,11 @@ sub get_context_fixup_sha {
         return;
     }
     return $candidate_shas[0];
+}
+
+sub uniq {
+    my %seen;
+    return grep {!$seen{$_}++} @_;
 }
 
 sub get_strict_fixup_sha {
