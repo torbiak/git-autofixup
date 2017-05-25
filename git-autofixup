@@ -446,11 +446,6 @@ git-autofixup was inspired by a description of L<hg absorb|https://bitbucket.org
 
 Copyright (C) 2017, Jordan Torbiak.
 
-This code is free software; you can redistribute it and/or modify it under the
-same terms as Perl 5.
-
-This program is distributed in the hope that it will be useful, but without any
-warranty; without even the implied warranty of merchantability or fitness for a
-particular purpose.
+This program is free software; you can redistribute it and/or modify it under the terms of the Artistic License v2.0.
 
 =cut
