@@ -17,9 +17,9 @@ my ($CONTEXT, $ADJACENT, $SURROUNDED) = (0..10);
 my $usage =<<'END';
 usage: git-autofixup [<options>] <revision>
 
--h, --help         show help
+-h                 show usage
+--help             show manpage
 --version          show version
---man              show manpage
 -v, --verbose      increase verbosity (use up to 2 times)
 -c N, --context N  set number of diff context lines (default 3)
 -s N, --strict N   set strictness (default 0):
@@ -343,8 +343,8 @@ sub main {
 
     my ($help, $show_version);
     GetOptionsFromArray(\@args,
-        'help|h' => \$help,
-        'man' => \$man,
+        'h' => \$help,
+        'help' => \$man,
         'version' => \$show_version,
         'verbose|v+' => \$verbose,
         'strict|s=i' => \$strict,
@@ -437,17 +437,17 @@ F<git-autofixup> is not to be used mindlessly. Always inspect the created fixup 
 
 =over
 
-=item -h, --help
+=item -h
 
-Show help.
+Show usage.
+
+=item --help
+
+Show manpage.
 
 =item --version
 
 Show version.
-
-=item --man
-
-Show manpage.
 
 =item -v, --verbose
 
