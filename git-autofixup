@@ -15,7 +15,7 @@ my $verbose;
 my ($CONTEXT, $ADJACENT, $SURROUNDED) = (0..10);
 
 my $usage =<<'END';
-usage: git-autofixup [<options>] <upstream-revision>
+usage: git-autofixup [<options>] <revision>
 
 -h, --help         show help
 --version          show version
@@ -362,10 +362,10 @@ sub main {
         pod2usage(-exitval => 0, -verbose => 2);
     }
 
-    @args == 1 or die "No upstream revision given.\n";
+    @args == 1 or die "No upstream commit given.\n";
     my $upstream = shift @args;
     qx(git rev-parse --verify ${upstream}^{commit});
-    $? == 0 or die "Bad revision.\n";
+    $? == 0 or die "Can't resolve given commit.\n";
 
     if ($num_context_lines < 0) {
         die "invalid number of context lines: $num_context_lines\n";
@@ -406,13 +406,13 @@ App::Git::Autofixup - create fixup commits for topic branches
 
 =head1 SYNOPSIS
 
-    git-autofixup [<options>] REVISION
+    git-autofixup [<options>] <revision>
 
 =head1 DESCRIPTION
 
-F<git-autofixup> parses hunks of changes in the working directory out of C<git diff> output and uses C<git blame> to assign those hunks to commits in C<REVISION..HEAD>, which will typically represent a topic branch, and then creates fixup commits to be used with C<git rebase --interactive --autosquash>. [See C<git help revisions> for information about git revision specification syntax.] It is assumed that unstaged changes near changes previously committed to the topic branch are related.
+F<git-autofixup> parses hunks of changes in the working directory out of C<git diff> output and uses C<git blame> to assign those hunks to commits in C<E<lt>revision<gt>..HEAD>, which will typically represent a topic branch, and then creates fixup commits to be used with C<git rebase --interactive --autosquash>. [See C<git help revisions> for information about git revision specification syntax.] It is assumed that unstaged changes near changes previously committed to the topic branch are related.
 
-C<@{upstream}> or C<@{u}> is likely a convenient value to use for C<REVISION> if the current branch has a tracking branch.
+C<@{upstream}> or C<@{u}> is likely a convenient value to use for C<E<lt>revision<gt>> if the current branch has a tracking branch.
 
 By default a hunk will be included in a fixup commit if all the lines in the hunk's context blamed on topic branch commits refer to the same commit, so there's no ambiguity about which commit the hunk corresponds to. If C<--strict 1> is given  the same topic branch commit must be blamed for every removed line and at least one of the lines adjacent to each added line, and added lines must not be adjacent to lines blamed on other topic branch commits. All the same restrictions apply when C<--strict 2> is given, but each added line must be surrounded by lines blamed on the same topic branch commit.
 
