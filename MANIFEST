@@ -6,5 +6,3 @@ Makefile.PL
 MANIFEST			This list of files
 README.pod
 t/autofixup.t
-t/pod.t
-t/precommit.t

@@ -1,0 +1,4 @@
+# 1.001002
+
+- Make compatible with perl5.8
+- --help now shows the manpage
