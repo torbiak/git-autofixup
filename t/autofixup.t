@@ -2,11 +2,10 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Test::More;
+use Test::More tests => 30;
 use File::Temp;
 use Carp qw(croak);
-
-use File::pushd;
+use Cwd;
 
 require 'git-autofixup';
 
@@ -15,9 +14,9 @@ $Data::Dumper::Terse = 1;
 
 sub test_autofixup_strict {
     my $params = shift;
-    my $strict_levels = $params->{strict} || croak "strictness levels not given";
+    my $strict_levels = $params->{strict} or croak "strictness levels not given";
     delete $params->{strict};
-    my $autofixup_opts = $params->{autofixup_opts} // [];
+    my $autofixup_opts = $params->{autofixup_opts} || [];
     if (grep /^(--strict|-s)/, @{$autofixup_opts}) {
         croak "strict option already given";
     }
@@ -45,24 +44,31 @@ sub test_autofixup_strict {
 # log_want: expected log output
 # autofixup_opts: command-line options to pass thru to autofixup
 sub test_autofixup {
-    my ($params) = @_;
-    my $name = $params->{name} || croak "no test name given";
-    my $upstream_commits = $params->{upstream_commits} // [];
-    my $topic_commits = $params->{topic_commits} // [];
-    my $unstaged = $params->{unstaged} // croak "no unstaged changes given";
-    my $log_want = $params->{log_want} // croak "wanted log output not given";
-    my $autofixup_opts = $params->{autofixup_opts} // [];
+    my ($args) = shift;
+    my $name = defined($args->{name}) ? $args->{name}
+             : croak "no test name given";
+    my $upstream_commits = $args->{upstream_commits} || [];
+    my $topic_commits = $args->{topic_commits} || [];
+    my $unstaged = defined($args->{unstaged}) ? $args->{unstaged}
+                 : croak "no unstaged changes given";
+    my $log_want = defined($args->{log_want}) ? $args->{log_want}
+                 : croak "wanted log output not given";
+    my $autofixup_opts = $args->{autofixup_opts} || [];
     if (!$upstream_commits && !$topic_commits) {
         croak "no upstream or topic commits given";
     }
-    if (exists $params->{strict}) {
+    if (exists $args->{strict}) {
         croak "strict key given; use test_autofixup_strict instead";
     }
 
     my $log_got;
+    my $orig_dir = getcwd();
     eval {
-        my $dir = pushd(File::Temp::tempdir());
+        my $dir = File::Temp->newdir();
+        chdir $dir or die "$!";
+
         init_repo();
+
         my $i = 0;
 
         for my $commit (@{$upstream_commits}) {
@@ -84,6 +90,7 @@ sub test_autofixup {
         run("git --no-pager log --format='%h %s' ${upstream_rev}..");
         autofixup(@{$autofixup_opts}, $upstream_rev);
         $log_got = get_git_log($pre_fixup_rev);
+        chdir $orig_dir or die "$!";
     };
     if ($@) {
         diag($@);
@@ -385,5 +392,3 @@ test_autofixup({
     autofixup_opts => ['-c' => 0],
     log_want => q{},
 });
-
-done_testing();

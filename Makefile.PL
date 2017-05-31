@@ -9,9 +9,6 @@ WriteMakefile(
     LICENSE          => 'artistic_2',
     MIN_PERL_VERSION => '5.008004',
     EXE_FILES        => ['git-autofixup'],
-    TEST_REQUIRES    => {
-        'File::pushd' => 1.0,
-    },
     (eval { ExtUtils::MakeMaker->VERSION(6.46) } ? (META_MERGE => {
         'meta-spec' => { version => 2 },
         resources => {

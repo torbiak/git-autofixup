@@ -59,7 +59,7 @@ sub parse_hunks {
             push(@hunks, {
                 file => $file_a,
                 start => $1,
-                count => $2 // 1,
+                count => defined($2) ? $2 : 1,
                 header => $header,
                 lines => $lines,
             });
@@ -138,7 +138,7 @@ sub get_strict_fixup_sha {
     my $is_valid_target = sub {
         my $sha = shift;
         return if !defined($sha_set->{$sha});
-        $target //= $sha;
+        $target ||= $sha;
         if ($sha ne $target) {
             if ($verbose) {
                 print STDERR "multiple fixup targets for $hunk->{file}, $hunk->{header}";
@@ -216,7 +216,7 @@ sub print_hunk_blamediff {
         my $bi = $blame_indexes->[$i];
         my $sha = defined $blame->{$bi} ? $blame->{$bi}{sha} : undef;
 
-        my $display_sha = $sha // q{};
+        my $display_sha = defined($sha) ? $sha : q{};
         my $display_bi = $bi;
         if (startswith($line_r, '+')) {
             $display_sha = q{}; # For added lines.
