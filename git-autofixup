@@ -109,13 +109,13 @@ sub get_sha_aliases {
 sub get_fixup_sha {
     my ($hunk, $blame, $sha_set, $strict) = @_;
     if ($strict == $CONTEXT) {
-        return get_context_fixup_sha($hunk, $blame, $sha_set);
+        return get_fixup_sha_from_all_context($hunk, $blame, $sha_set);
     } else {
-        return get_strict_fixup_sha($hunk, $blame, $sha_set, $strict);
+        return get_fixup_sha_from_adjacent($hunk, $blame, $sha_set, $strict);
     }
 }
 
-sub get_context_fixup_sha {
+sub get_fixup_sha_from_all_context {
     my ($hunk, $blame, $sha_set) = @_;
     my @blamed_shas = uniq(map {$_->{sha}} values(%{$blame}));
     my @target_shas = grep {defined $sha_set->{$_}} @blamed_shas;
@@ -130,7 +130,7 @@ sub uniq {
     return grep {!$seen{$_}++} @_;
 }
 
-sub get_strict_fixup_sha {
+sub get_fixup_sha_from_adjacent {
     my ($hunk, $blame, $sha_set, $strict) = @_;
     my $blame_indexes = get_blame_indexes($hunk);
     my $target;
