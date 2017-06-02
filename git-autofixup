@@ -24,7 +24,8 @@ usage: git-autofixup [<options>] <revision>
 -v, --verbose      increase verbosity (use up to 2 times)
 -c N, --context N  set number of diff context lines (default 3)
 -s N, --strict N   set strictness (default 0):
-    0: exactly one topic branch commit blamed in hunk context
+    0: exactly one topic branch commit blamed in hunk context, but disambiguate
+       using adjacent lines when possible
     1: changed lines adjacent to exactly one topic branch commit
     2: changed lines surrounded by exactly one topic branch commit
 END
@@ -109,7 +110,11 @@ sub get_sha_aliases {
 
 sub get_fixup_sha {
     my $args = shift;
-    croak "missing arguments" if !defined $args->{strict};
+    my @arg_names = qw(hunk blame sha_set strict);
+    if (grep {!defined $args->{$_}} @arg_names) {
+        croak 'missing argument';
+    }
+
     if ($args->{strict} == $CONTEXT) {
         return get_fixup_sha_from_all_context($args);
     } else {
@@ -124,8 +129,17 @@ sub get_fixup_sha_from_all_context {
 
     my @blamed_shas = uniq(map {$_->{sha}} values(%{$blame}));
     my @target_shas = grep {defined $sha_set->{$_}} @blamed_shas;
-    if (@target_shas != 1) {
+    if (@target_shas == 0) {
         return;
+    } elsif (@target_shas > 1) {
+        # The context assignment is ambiguous, but an adjacency assignment
+        # might not be.
+        return get_fixup_sha_from_adjacent({
+            hunk => $hunk,
+            blame => $blame,
+            sha_set => $sha_set,
+            strict => $ADJACENT
+        });
     }
     return $target_shas[0];
 }
@@ -460,7 +474,7 @@ F<git-autofixup> parses hunks of changes in the working directory out of C<git d
 
 C<@{upstream}> or C<@{u}> is likely a convenient value to use for C<E<lt>revision<gt>> if the current branch has a tracking branch.
 
-By default a hunk will be included in a fixup commit if all the lines in the hunk's context blamed on topic branch commits refer to the same commit, so there's no ambiguity about which commit the hunk corresponds to. If C<--strict 1> is given  the same topic branch commit must be blamed for every removed line and at least one of the lines adjacent to each added line, and added lines must not be adjacent to lines blamed on other topic branch commits. All the same restrictions apply when C<--strict 2> is given, but each added line must be surrounded by lines blamed on the same topic branch commit.
+By default a hunk will be included in a fixup commit if all the lines in the hunk's context blamed on topic branch commits refer to the same commit, so there's no ambiguity about which commit the hunk corresponds to. If there is ambiguity the assignment behaviour used under C<--strict 1> will be used to attempt to resolve it. If C<--strict 1> is given the same topic branch commit must be blamed for every removed line and at least one of the lines adjacent to each added line, and added lines must not be adjacent to lines blamed on other topic branch commits. All the same restrictions apply when C<--strict 2> is given, but each added line must be surrounded by lines blamed on the same topic branch commit.
 
 For example,  the added line in the hunk below is adjacent to lines committed by commits C<99f370af> and C<a1eadbe2>. If these are both topic branch commits then it's ambiguous which commit the added line is fixing up and the hunk will be ignored.
 

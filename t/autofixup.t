@@ -2,7 +2,7 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Test::More tests => 30;
+use Test::More tests => 31;
 use File::Temp;
 use Carp qw(croak);
 use Cwd;
@@ -392,3 +392,22 @@ test_autofixup({
     autofixup_opts => ['-c' => 0],
     log_want => q{},
 });
+
+test_autofixup({
+    name => "ADJACENCY assignment is used as a fallback for multiple context targets",
+    topic_commits => [
+        {a => "a1\n"},
+        {a => "a1\na2\n"},
+    ],
+    unstaged => {a => "a1\na2a\n"},
+    log_want => q{fixup! commit1
+
+diff --git a/a b/a
+index 0016606..a0ef52c 100644
+--- a/a
++++ b/a
+@@ -1,2 +1,2 @@
+ a1
+-a2
++a2a
+}});
