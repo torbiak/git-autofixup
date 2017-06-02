@@ -85,16 +85,16 @@ sub get_summary_for_commits {
 # Return targets of fixup!/squash! commits.
 sub get_sha_aliases {
     my $summary_for = shift;
-    my @candidates = keys(%{$summary_for});
     my %aliases;
-    for my $sha (keys(%{$summary_for})) {
+    my @targets = keys(%{$summary_for});
+    for my $sha (@targets) {
         my $summary = $summary_for->{$sha};
         next if $summary !~ /^(?:fixup|squash)! (.*)/;
         my $prefix = $1;
         if ($prefix =~ /^(?:(?:fixup|squash)! ){2}/) {
             die "fixup commits for fixup commits aren't supported: $sha";
         }
-        my @matches = grep {startswith($summary_for->{$_}, $prefix)} keys(%{$summary_for});
+        my @matches = grep {startswith($summary_for->{$_}, $prefix)} @targets;
         if (@matches > 1) {
             die "ambiguous fixup commit target: multiple commit summaries start with: $prefix\n";
         } elsif (@matches == 0) {
@@ -118,11 +118,11 @@ sub get_fixup_sha {
 sub get_context_fixup_sha {
     my ($hunk, $blame, $sha_set) = @_;
     my @blamed_shas = uniq(map {$_->{sha}} values(%{$blame}));
-    my @candidate_shas = grep {defined $sha_set->{$_}} @blamed_shas;
-    if (@candidate_shas != 1) {
+    my @target_shas = grep {defined $sha_set->{$_}} @blamed_shas;
+    if (@target_shas != 1) {
         return;
     }
-    return $candidate_shas[0];
+    return $target_shas[0];
 }
 
 sub uniq {
