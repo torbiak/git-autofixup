@@ -264,7 +264,7 @@ sub print_hunk_blamediff {
         }
 
         my $line_l = '';
-        if (defined $blame->{$bi}) {
+        if (defined $blame->{$bi} && !startswith($line_r, '+')) {
             $line_l = $blame->{$bi}{text};
         }
 
@@ -276,7 +276,7 @@ sub print_hunk_blamediff {
             $_ = rtrim($_);
         }
 
-        printf {$fh} $format, $display_sha, $bi, $line_l, $line_r;
+        printf {$fh} $format, $display_sha, $display_bi, $line_l, $line_r;
     }
     print {$fh} "\n";
     return;
