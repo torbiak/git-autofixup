@@ -4,6 +4,7 @@ use 5.008004;  # In accordance with Git's CodingGuidelines.
 use strict;
 use warnings FATAL => 'all';
 
+use Carp qw(croak);
 use Pod::Usage;
 use Getopt::Long qw(GetOptionsFromArray :config bundling);
 
@@ -107,16 +108,20 @@ sub get_sha_aliases {
 }
 
 sub get_fixup_sha {
-    my ($hunk, $blame, $sha_set, $strict) = @_;
-    if ($strict == $CONTEXT) {
-        return get_fixup_sha_from_all_context($hunk, $blame, $sha_set);
+    my $args = shift;
+    croak "missing arguments" if !defined $args->{strict};
+    if ($args->{strict} == $CONTEXT) {
+        return get_fixup_sha_from_all_context($args);
     } else {
-        return get_fixup_sha_from_adjacent($hunk, $blame, $sha_set, $strict);
+        return get_fixup_sha_from_adjacent($args);
     }
 }
 
 sub get_fixup_sha_from_all_context {
-    my ($hunk, $blame, $sha_set) = @_;
+    my $args = shift;
+    my ($hunk, $blame, $sha_set) = @{$args}{qw(hunk blame sha_set)};
+    croak 'missing argument' if grep {!defined} ($hunk, $blame, $sha_set);
+
     my @blamed_shas = uniq(map {$_->{sha}} values(%{$blame}));
     my @target_shas = grep {defined $sha_set->{$_}} @blamed_shas;
     if (@target_shas != 1) {
@@ -131,7 +136,15 @@ sub uniq {
 }
 
 sub get_fixup_sha_from_adjacent {
-    my ($hunk, $blame, $sha_set, $strict) = @_;
+    my $args = shift;
+    my $hunk = $args->{hunk};
+    my $blame = $args->{blame};
+    my $sha_set = $args->{sha_set};
+    my $strict = $args->{strict};
+    if (grep {!defined} ($hunk, $blame, $sha_set, $strict)) {
+        croak 'missing argument';
+    }
+
     my $blame_indexes = get_blame_indexes($hunk);
     my $target;
 
@@ -208,7 +221,16 @@ sub get_blame_indexes {
 }
 
 sub print_hunk_blamediff {
-    my ($fh, $hunk, $sha_set, $blame, $blame_indexes) = @_;
+    my $args = shift;
+    my $fh = $args->{fh};
+    my $hunk = $args->{hunk};
+    my $sha_set = $args->{sha_set};
+    my $blame = $args->{blame};
+    my $blame_indexes = $args->{blame_indexes};
+    if (grep {!defined} ($fh, $hunk, $sha_set, $blame, $blame_indexes)) {
+        croak 'missing argument';
+    }
+
     my $format = "%-8.8s|%4.4s|%-30.30s|%-30.30s\n";
     print {$fh} "hunk blamediff: $hunk->{file}, $hunk->{header}";
     for (my $i = 0; $i < @{$hunk->{lines}}; $i++) {
@@ -319,14 +341,33 @@ sub is_index_dirty {
 }
 
 sub get_fixup_hunks_by_sha {
-    my ($hunks, $blame_for, $summary_for, $strict) = @_;
+    my $args = shift;
+    my $hunks = $args->{hunks};
+    my $blame_for = $args->{blame_for};
+    my $summary_for = $args->{summary_for};
+    my $strict = $args->{strict};
+    if (grep {!defined} ($hunks, $blame_for, $summary_for, $strict)) {
+        croak 'missing argument';
+    }
+
     my %hunks_for;
     for my $hunk (@{$hunks}) {
         my $blame = $blame_for->{$hunk};
         if ($verbose > 1) {
-            print_hunk_blamediff(*STDERR, $hunk, $summary_for, $blame, get_blame_indexes($hunk));
+            print_hunk_blamediff({
+                fh => *STDERR,
+                hunk => $hunk,
+                sha_set => $summary_for,
+                blame => $blame,
+                blame_indexes => get_blame_indexes($hunk)
+            });
         }
-        my $sha = get_fixup_sha($hunk, $blame, $summary_for, $strict);
+        my $sha = get_fixup_sha({
+            hunk => $hunk,
+            blame => $blame,
+            sha_set => $summary_for,
+            strict => $strict,
+        });
         next if !$sha;
         push @{$hunks_for{$sha}}, $hunk;
     }
@@ -386,7 +427,12 @@ sub main {
     my $summary_for = get_summary_for_commits($upstream);
     my $alias_for = get_sha_aliases($summary_for);
     my %blame_for = map {$_ => blame($_, $alias_for)} @{$hunks};
-    my $hunks_for = get_fixup_hunks_by_sha($hunks, \%blame_for, $summary_for, $strict);
+    my $hunks_for = get_fixup_hunks_by_sha({
+        hunks => $hunks,
+        blame_for => \%blame_for,
+        summary_for => $summary_for,
+        strict => $strict,
+    });
     while (my ($sha, $fixup_hunks) = each %{$hunks_for}) {
         commit_fixup($sha, $fixup_hunks);
     }
