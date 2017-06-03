@@ -63,9 +63,9 @@ sub test_autofixup {
 
     my $log_got;
     my $orig_dir = getcwd();
+    my $dir = File::Temp->newdir();
+    chdir $dir or die "$!";
     eval {
-        my $dir = File::Temp->newdir();
-        chdir $dir or die "$!";
 
         init_repo();
 
@@ -90,10 +90,11 @@ sub test_autofixup {
         run("git --no-pager log --format='%h %s' ${upstream_rev}..");
         autofixup(@{$autofixup_opts}, $upstream_rev);
         $log_got = get_git_log($pre_fixup_rev);
-        chdir $orig_dir or die "$!";
     };
-    if ($@) {
-        diag($@);
+    my $err = $@;
+    chdir $orig_dir or die "$!";
+    if ($err) {
+        diag($err);
         fail($name);
         return;
     }
