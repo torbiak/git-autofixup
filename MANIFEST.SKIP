@@ -67,3 +67,5 @@
 \.tgz$
 \.tar\.gz$
 MANIFEST\.SKIP
+^xt
+\.sw[pmno]$

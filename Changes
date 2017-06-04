@@ -1,4 +1,10 @@
-# 1.001002
+# 0.002000
+
+- Better descriptions of hunk handling now printed to stdout.
+- Use --strict=1 behaviour as a fallback when --strict=0.
+- Fix blamed line number and left side output for runs of added lines
+
+# 0.001002
 
 - Make compatible with perl5.8
 - --help now shows the manpage
