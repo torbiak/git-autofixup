@@ -110,38 +110,63 @@ sub get_sha_aliases {
 
 sub get_fixup_sha {
     my $args = shift;
-    my @arg_names = qw(hunk blame sha_set strict);
-    if (grep {!defined $args->{$_}} @arg_names) {
+    my $hunk = $args->{hunk};
+    my $blame = $args->{blame};
+    my $summary_for = $args->{summary_for};
+    my $strict = $args->{strict};
+    if (grep {!defined} ($hunk, $blame, $summary_for, $strict)) {
         croak 'missing argument';
     }
 
+    my @targets;
     if ($args->{strict} == $CONTEXT) {
-        return get_fixup_sha_from_all_context($args);
+        @targets = get_fixup_targets_from_all_context($args);
+        my @topic_targets = grep {defined $summary_for->{$_}} @targets;
+        if (@topic_targets > 1) {
+            # The context assignment is ambiguous, but an adjacency assignment
+            # might not be.
+            @targets = get_fixup_targets_from_adjacent_context($args);
+        }
     } else {
-        return get_fixup_sha_from_adjacent($args);
+        @targets = get_fixup_targets_from_adjacent_context($args);
     }
+
+    my $upstream_is_blamed = grep {!defined $summary_for->{$_}} @targets;
+    my @topic_targets = grep {defined $summary_for->{$_}} @targets;
+    if ($strict && $upstream_is_blamed) {
+        $verbose && print hunk_desc($hunk), " changes lines blamed on upstream\n";
+        return;
+    } elsif (@topic_targets > 1) {
+        $verbose && print hunk_desc($hunk), " has multiple targets\n";
+        return;
+    } elsif (@topic_targets == 0) {
+        $verbose && print hunk_desc($hunk), " has no targets\n";
+        return;
+    }
+    if ($verbose) {
+        printf "%s fixes %s %s\n",
+            hunk_desc($hunk),
+            substr($topic_targets[0], 0, 8),
+            $summary_for->{$topic_targets[0]};
+    }
+    return $topic_targets[0];
 }
 
-sub get_fixup_sha_from_all_context {
-    my $args = shift;
-    my ($hunk, $blame, $sha_set) = @{$args}{qw(hunk blame sha_set)};
-    croak 'missing argument' if grep {!defined} ($hunk, $blame, $sha_set);
+sub hunk_desc {
+    my $hunk = shift;
+    return join " ", (
+        $hunk->{file},
+        $hunk->{header} =~ /(@@[^@]*@@)/,
+    );
+}
 
-    my @blamed_shas = uniq(map {$_->{sha}} values(%{$blame}));
-    my @target_shas = grep {defined $sha_set->{$_}} @blamed_shas;
-    if (@target_shas == 0) {
-        return;
-    } elsif (@target_shas > 1) {
-        # The context assignment is ambiguous, but an adjacency assignment
-        # might not be.
-        return get_fixup_sha_from_adjacent({
-            hunk => $hunk,
-            blame => $blame,
-            sha_set => $sha_set,
-            strict => $ADJACENT
-        });
-    }
-    return $target_shas[0];
+sub get_fixup_targets_from_all_context {
+    my $args = shift;
+    my ($hunk, $blame, $summary_for) = @{$args}{qw(hunk blame summary_for)};
+    croak 'missing argument' if grep {!defined} ($hunk, $blame, $summary_for);
+
+    my @targets = uniq(map {$_->{sha}} values(%{$blame}));
+    return wantarray ? @targets : \@targets;
 }
 
 sub uniq {
@@ -149,39 +174,26 @@ sub uniq {
     return grep {!$seen{$_}++} @_;
 }
 
-sub get_fixup_sha_from_adjacent {
+sub get_fixup_targets_from_adjacent_context {
     my $args = shift;
     my $hunk = $args->{hunk};
     my $blame = $args->{blame};
-    my $sha_set = $args->{sha_set};
+    my $summary_for = $args->{summary_for};
     my $strict = $args->{strict};
-    if (grep {!defined} ($hunk, $blame, $sha_set, $strict)) {
+    if (grep {!defined} ($hunk, $blame, $summary_for, $strict)) {
         croak 'missing argument';
     }
 
     my $blame_indexes = get_blame_indexes($hunk);
-    my $target;
 
-    my $is_valid_target = sub {
-        my $sha = shift;
-        return if !defined($sha_set->{$sha});
-        $target ||= $sha;
-        if ($sha ne $target) {
-            if ($verbose) {
-                print STDERR "multiple fixup targets for $hunk->{file}, $hunk->{header}";
-            }
-            return;
-        }
-        return 1;
-    };
-
+    my %blamed;
     my $diff = $hunk->{lines};
     for (my $di = 0; $di < @{$diff}; $di++) { # diff index
         my $bi = $blame_indexes->[$di];
         my $line = $diff->[$di];
         if (startswith($line, '-')) {
             my $sha = $blame->{$bi}{sha};
-            &$is_valid_target($sha) or return;
+            $blamed{$sha} = 1;
         } elsif (startswith($line, '+')) {
             my @lines;
             if ($di > 0 && defined $blame->{$bi-1}) {
@@ -191,26 +203,23 @@ sub get_fixup_sha_from_adjacent {
                 push @lines, $bi;
             }
             my @adjacent_shas = uniq(map {$_->{sha}} @{$blame}{@lines});
-            my @target_shas = grep {defined $sha_set->{$_}} @adjacent_shas;
+            my @target_shas = grep {defined $summary_for->{$_}} @adjacent_shas;
             # Note that lines at the beginning or end of a file can be
             # "surrounded" by a single line.
             my $is_surrounded = @target_shas > 0
                 && @target_shas == @adjacent_shas
                 && $target_shas[0] eq $target_shas[-1];
             my $is_adjacent = @target_shas == 1;
-            if (!$is_adjacent || ($strict >= $SURROUNDED && !$is_surrounded)) {
-                return;
+            if ($is_surrounded || ($strict < $SURROUNDED && $is_adjacent)) {
+                $blamed{$target_shas[0]} = 1;
             }
-            &$is_valid_target($target_shas[0]) or return;
             while ($di < @$diff-1 && startswith($diff->[$di+1], '+')) {
                 $di++;
             }
         }
     }
-    if ($verbose && !$target) {
-        print STDERR "no fixup targets found for $hunk->{file}, $hunk->{header}\n";
-    }
-    return $target;
+    my @targets = keys %blamed;
+    return wantarray ? @targets : \@targets;
 }
 
 sub startswith {
@@ -238,15 +247,14 @@ sub print_hunk_blamediff {
     my $args = shift;
     my $fh = $args->{fh};
     my $hunk = $args->{hunk};
-    my $sha_set = $args->{sha_set};
+    my $summary_for = $args->{summary_for};
     my $blame = $args->{blame};
     my $blame_indexes = $args->{blame_indexes};
-    if (grep {!defined} ($fh, $hunk, $sha_set, $blame, $blame_indexes)) {
+    if (grep {!defined} ($fh, $hunk, $summary_for, $blame, $blame_indexes)) {
         croak 'missing argument';
     }
 
     my $format = "%-8.8s|%4.4s|%-30.30s|%-30.30s\n";
-    print {$fh} "hunk blamediff: $hunk->{file}, $hunk->{header}";
     for (my $i = 0; $i < @{$hunk->{lines}}; $i++) {
         my $line_r = $hunk->{lines}[$i];
         my $bi = $blame_indexes->[$i];
@@ -258,7 +266,7 @@ sub print_hunk_blamediff {
             $display_sha = q{}; # For added lines.
             $display_bi = q{};
         }
-        if (defined($sha) && !defined($sha_set->{$sha})) {
+        if (defined($sha) && !defined($summary_for->{$sha})) {
             # For lines from before the given upstream revision.
             $display_sha = '^';
         }
@@ -367,21 +375,21 @@ sub get_fixup_hunks_by_sha {
     my %hunks_for;
     for my $hunk (@{$hunks}) {
         my $blame = $blame_for->{$hunk};
+        my $sha = get_fixup_sha({
+            hunk => $hunk,
+            blame => $blame,
+            summary_for => $summary_for,
+            strict => $strict,
+        });
         if ($verbose > 1) {
             print_hunk_blamediff({
-                fh => *STDERR,
+                fh => *STDOUT,
                 hunk => $hunk,
-                sha_set => $summary_for,
+                summary_for => $summary_for,
                 blame => $blame,
                 blame_indexes => get_blame_indexes($hunk)
             });
         }
-        my $sha = get_fixup_sha({
-            hunk => $hunk,
-            blame => $blame,
-            sha_set => $summary_for,
-            strict => $strict,
-        });
         next if !$sha;
         push @{$hunks_for{$sha}}, $hunk;
     }
