@@ -4,7 +4,7 @@ use warnings FATAL => 'all';
 use Test::More tests => 2;
 use File::Temp;
 use App::Git::Autofixup;
-require 'git-autofixup';
+require './git-autofixup';
 
 our $VERSION;
 is($VERSION, $App::Git::Autofixup::VERSION, "versions agree");

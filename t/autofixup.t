@@ -2,15 +2,30 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Test::More tests => 31;
-use File::Temp;
 use Carp qw(croak);
 use Cwd;
+use English qw(-no_match_vars);
+use File::Temp qw(tempdir);
 
-require 'git-autofixup';
+use Test::More;
+if ($OSNAME eq 'MSWin32') {
+    plan skip_all => 'Run from Cygwin or Git Bash on Windows'
+} elsif (!has_git()) {
+    plan skip_all => 'git required'
+} else {
+    plan tests => 31;
+}
 
-use Data::Dumper;
-$Data::Dumper::Terse = 1;
+require './git-autofixup';
+
+$ENV{GIT_AUTHOR_NAME} = 'Au Thor';
+$ENV{GIT_AUTHOR_EMAIL} = 'au@th.or';
+
+
+sub has_git {
+    qx{git --version};
+    return $? != -1;
+}
 
 sub test_autofixup_strict {
     my $params = shift;
@@ -63,7 +78,7 @@ sub test_autofixup {
 
     my $log_got;
     my $orig_dir = getcwd();
-    my $dir = File::Temp->newdir();
+    my $dir = File::Temp::tempdir(CLEANUP => 1);
     chdir $dir or die "$!";
     eval {
 
