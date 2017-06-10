@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 package main;
-use 5.008004;  # In accordance with Git's CodingGuidelines.
+use 5.008004;
 use strict;
 use warnings FATAL => 'all';
 
