@@ -71,9 +71,14 @@ Git is distributed with Perl 5 for platforms not expected to already have it ins
 
 If copied to the path printed by C<git --exec-path> and named F<git-autofixup> this script can be invoked as C<git autofixup> but this isn't recommended as future updates to git could change the exec path.
 
+Requires a git supporting C<commit --fixup>: 1.7.4 or later.
+
+
 =head1 BUGS/LIMITATIONS
 
 If a topic branch adds some lines in one commit and subsequently removes some of them in another, a hunk in the working directory that re-adds those lines will be assigned to fixup the first commit, and during rebasing they'll be removed again by the later commit.
+
+Not tested in F<cmd.exe> on Windows. Run it from Git Bash, Cygwin, or a similar Unix emulation environment.
 
 =head1 ACKNOWLEDGEMENTS
 
