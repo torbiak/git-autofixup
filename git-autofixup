@@ -35,7 +35,8 @@ sub parse_hunks {
     my $fh = shift;
     my ($file_a, $file_b);
     my @hunks;
-    while (my $line = <$fh>) {
+    my $line;
+    while ($line = <$fh>) {
         if ($line =~ /^--- (.*)/) {
             $file_a = $1;
         } elsif ($line =~ /^\+\+\+ (.*)/) {
@@ -67,7 +68,7 @@ sub parse_hunks {
             });
             # The next line after a hunk could be a header for the next commit
             # or hunk.
-            redo if defined($line);
+            redo if defined $line;
         }
     }
     return @hunks;
