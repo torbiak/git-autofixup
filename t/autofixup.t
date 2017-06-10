@@ -162,8 +162,9 @@ sub get_revision_sha {
 }
 
 sub autofixup {
+    local @ARGV = @_;
     print "# git-autofixup\n";
-    main(@_) == 0 or die "git-autofixup: nonzero exit";
+    main() == 0 or die "git-autofixup: nonzero exit";
 }
 
 

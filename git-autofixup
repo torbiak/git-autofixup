@@ -6,7 +6,7 @@ use warnings FATAL => 'all';
 
 use Carp qw(croak);
 use Pod::Usage;
-use Getopt::Long qw(GetOptionsFromArray :config bundling);
+use Getopt::Long qw(:config bundling);
 
 our $VERSION = 0.002000; # X.YYYZZZ
 
@@ -398,15 +398,13 @@ sub get_fixup_hunks_by_sha {
 }
 
 sub main {
-    my @args = @_;
-
     $verbose = 0;
     my $num_context_lines = 3;
     my $strict = $CONTEXT;
     my $man;
 
     my ($help, $show_version);
-    GetOptionsFromArray(\@args,
+    GetOptions(
         'h' => \$help,
         'help' => \$man,
         'version' => \$show_version,
@@ -426,8 +424,8 @@ sub main {
         pod2usage(-exitval => 0, -verbose => 2);
     }
 
-    @args == 1 or die "No upstream commit given.\n";
-    my $upstream = shift @args;
+    @ARGV == 1 or die "No upstream commit given.\n";
+    my $upstream = shift @ARGV;
     qx(git rev-parse --verify ${upstream}^{commit});
     $? == 0 or die "Can't resolve given commit.\n";
 
@@ -463,9 +461,11 @@ sub main {
 }
 
 if (!caller()) {
-    exit main(@ARGV);
+    exit main();
 }
 1;
+
+__END__
 
 =pod
 
