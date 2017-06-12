@@ -1,3 +1,7 @@
+# 0.002002
+
+- Fix tests when git user.name and email aren't configured.
+
 # 0.002001
 
 - Make compatible with perl 5.8.4. Previously 5.8.9 was required.

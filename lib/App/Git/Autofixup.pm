@@ -1,10 +1,12 @@
 package App::Git::Autofixup;
+use strict;
+use warnings FATAL => 'all';
 
-our $VERSION = 0.002001;
+our $VERSION = 0.002002;
 
 =head1 NAME
 
-App::GitAutofixup - create fixup commits for topic branches
+App::Git::Autofixup - create fixup commits for topic branches
 
 =head1 DESCRIPTION
 
