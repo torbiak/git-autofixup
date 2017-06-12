@@ -18,8 +18,10 @@ if ($OSNAME eq 'MSWin32') {
 
 require './git-autofixup';
 
-$ENV{GIT_AUTHOR_NAME} = 'Au Thor';
-$ENV{GIT_AUTHOR_EMAIL} = 'au@th.or';
+$ENV{GIT_AUTHOR_NAME} = 'A U Thor';
+$ENV{GIT_AUTHOR_EMAIL} = 'author@example.com';
+$ENV{GIT_COMMITTER_NAME} = 'C O Mitter';
+$ENV{GIT_COMMITTER_EMAIL} = 'committer@example.com';
 
 
 sub has_git {
