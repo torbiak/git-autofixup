@@ -11,7 +11,7 @@ use Test::More;
 if ($OSNAME eq 'MSWin32') {
     plan skip_all => 'Run from Cygwin or Git Bash on Windows'
 } elsif (!has_git()) {
-    plan skip_all => 'git required'
+    plan skip_all => 'git version 1.7.4+ required'
 } else {
     plan tests => 31;
 }
@@ -25,8 +25,13 @@ $ENV{GIT_COMMITTER_EMAIL} = 'committer@example.com';
 
 
 sub has_git {
-    qx{git --version};
-    return $? != -1;
+    my $stdout = qx{git --version};
+    return if $? != 0;
+    my ($x, $y, $z) = $stdout =~ /(\d+)\.(\d+)(?:\.(\d+))?/;
+    defined $x or die "unexpected output from git: $stdout";
+    $z = defined $z ? $z : 0;
+    my $cmp = $x <=> 1 || $y <=> 7 || $z <=> 4;
+    return $cmp >= 0;
 }
 
 sub test_autofixup_strict {
