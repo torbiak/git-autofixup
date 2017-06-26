@@ -1,3 +1,7 @@
+# 0.002003
+
+- Check git version when running tests
+
 # 0.002002
 
 - Fix tests when git user.name and email aren't configured.

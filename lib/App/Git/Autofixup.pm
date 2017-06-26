@@ -2,7 +2,7 @@ package App::Git::Autofixup;
 use strict;
 use warnings FATAL => 'all';
 
-our $VERSION = 0.002002;
+our $VERSION = 0.002003;
 
 =head1 NAME
 
