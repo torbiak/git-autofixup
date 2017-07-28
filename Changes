@@ -1,3 +1,7 @@
+# 0.002004
+
+- Fix angle brackets in POD
+
 # 0.002003
 
 - Check git version when running tests
