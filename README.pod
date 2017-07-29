@@ -65,11 +65,9 @@ Set how strict F<git-autofixup> is about assigning hunks to fixup commits. Defau
 
 =head1 INSTALLATION
 
-If cpan is available, run C<cpan -i App::Git::Autofixup>. Otherwise, copy F<git-autofixup> to a directory in C<PATH> and ensure it has execute permissions.
+If cpan is available, run C<cpan -i App::Git::Autofixup>. Otherwise, copy F<git-autofixup> to a directory in C<PATH> and ensure it has execute permissions. It can then be invoked as either C<git autofixup> or C<git-autofixup>, since git searches C<PATH> for appropriately named binaries.
 
 Git is distributed with Perl 5 for platforms not expected to already have it installed, but installing modules with cpan requires other tools that might not be available, such as make. This script has no dependencies outside of the standard library, so it is hoped that it works on any platform that Git does without much trouble.
-
-If copied to the path printed by C<git --exec-path> and named F<git-autofixup> this script can be invoked as C<git autofixup> but this isn't recommended as future updates to git could change the exec path.
 
 Requires a git supporting C<commit --fixup>: 1.7.4 or later.
 
