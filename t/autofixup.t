@@ -13,7 +13,7 @@ if ($OSNAME eq 'MSWin32') {
 } elsif (!has_git()) {
     plan skip_all => 'git version 1.7.4+ required'
 } else {
-    plan tests => 31;
+    plan tests => 32;
 }
 
 require './git-autofixup';
@@ -434,4 +434,25 @@ index 0016606..a0ef52c 100644
  a1
 -a2
 +a2a
+}});
+
+test_autofixup({
+    name => "Works when run in a subdir of the repo root",
+    topic_commits => [
+        sub {
+            mkdir 'sub' or die $!;
+            chdir 'sub' or die $!;
+            write_file("a", "a1\n");
+        }
+    ],
+    unstaged => {'a' => "a1\na2\n"},
+    log_want => q{fixup! commit0
+
+diff --git a/sub/a b/sub/a
+index da0f8ed..0016606 100644
+--- a/sub/a
++++ b/sub/a
+@@ -1 +1,2 @@
+ a1
++a2
 }});

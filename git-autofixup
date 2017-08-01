@@ -305,7 +305,7 @@ sub blame {
     my @cmd = (
         'git', 'blame', '--porcelain',
         '-L' => "$hunk->{start},+$hunk->{count}",
-        'HEAD',
+        'HEAD', '--',
         "$hunk->{file}");
     my %blame;
     my ($sha, $line_num);
@@ -439,6 +439,11 @@ sub main {
         die "strict hunk assignment requires context\n";
     }
 
+
+    my $toplevel = qx(git rev-parse --show-toplevel);
+    chomp $toplevel;
+    $? == 0 or die "Can't get repo toplevel dir\n";
+    chdir $toplevel or die $!;
 
     if (is_index_dirty()) {
         die "There are staged changes. Clean up the index and try again.\n";
