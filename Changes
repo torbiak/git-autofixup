@@ -1,3 +1,8 @@
+# 0.002005
+
+- Fix running from repo subdirectories
+- Fix docs for invoking as "git autofixup"
+
 # 0.002004
 
 - Fix angle brackets in POD
