@@ -23,11 +23,12 @@ usage: git-autofixup [<options>] <revision>
 --version          show version
 -v, --verbose      increase verbosity (use up to 2 times)
 -c N, --context N  set number of diff context lines (default 3)
--s N, --strict N   set strictness (default 0):
-    0: exactly one topic branch commit blamed in hunk context, but disambiguate
-       using adjacent lines when possible
-    1: changed lines adjacent to exactly one topic branch commit
-    2: changed lines surrounded by exactly one topic branch commit
+-s N, --strict N   set strictness (default 0)
+    Assign hunk to topic branch commit if:
+    0: exactly one topic branch commit is blamed in hunk context or 
+       changed lines are adjacent to exactly one topic branch commit
+    1: changed lines are adjacent to exactly one topic branch commit
+    2: changed lines are surrounded by exactly one topic branch commit
 END
 
 # Parse hunks out of `git diff` output. Return an array of hunk hashrefs.
