@@ -1,3 +1,8 @@
+# 0.002006
+
+- Improve docs for the --strict option
+- Fix hunk parsing for files without a newline at EOF
+
 # 0.002005
 
 - Fix running from repo subdirectories
