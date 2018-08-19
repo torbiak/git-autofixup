@@ -54,7 +54,7 @@ sub parse_hunks {
             my $lines = [];
             while (1) {
                 $line = <$fh>;
-                if (!defined($line) || $line =~ /^[^ +-]/) {
+                if (!defined($line) || $line =~ /^[^ +-\\]/) {
                     last;
                 }
                 push @{$lines}, $line;

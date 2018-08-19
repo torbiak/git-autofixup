@@ -13,7 +13,7 @@ if ($OSNAME eq 'MSWin32') {
 } elsif (!has_git()) {
     plan skip_all => 'git version 1.7.4+ required'
 } else {
-    plan tests => 32;
+    plan tests => 33;
 }
 
 require './git-autofixup';
@@ -454,5 +454,22 @@ index da0f8ed..0016606 100644
 +++ b/sub/a
 @@ -1 +1,2 @@
  a1
++a2
+}});
+
+test_autofixup({
+    name => "file without newline at EOF gets autofixed",
+    topic_commits => [{a => "a1\na2"}],
+    unstaged => {'a' => "a1\na2\n"},
+    log_want => q{fixup! commit0
+
+diff --git a/a b/a
+index c928c51..0016606 100644
+--- a/a
++++ b/a
+@@ -1,2 +1,2 @@
+ a1
+-a2
+\ No newline at end of file
 +a2
 }});
