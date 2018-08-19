@@ -341,7 +341,7 @@ sub commit_fixup {
     for my $hunk (@{$hunks}) {
         print({$fh}
             "--- a/$hunk->{file}\n",
-            "+++ a/$hunk->{file}\n",
+            "+++ b/$hunk->{file}\n",
             $hunk->{header},
             @{$hunk->{lines}},
         );
