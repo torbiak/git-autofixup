@@ -24,11 +24,18 @@ usage: git-autofixup [<options>] <revision>
 -v, --verbose      increase verbosity (use up to 2 times)
 -c N, --context N  set number of diff context lines (default 3)
 -s N, --strict N   set strictness (default 0)
-    Assign hunk to topic branch commit if:
-    0: exactly one topic branch commit is blamed in hunk context or 
-       changed lines are adjacent to exactly one topic branch commit
-    1: changed lines are adjacent to exactly one topic branch commit
-    2: changed lines are surrounded by exactly one topic branch commit
+    Assign a hunk to fixup a topic branch commit if:
+
+    0: either only one topic branch commit is blamed in the hunk context or
+       blocks of added lines are adjacent to exactly one topic branch commit.
+       Removing upstream lines is allowed for this level.
+    1: blocks of added lines are adjacent to exactly one topic branch commit
+    2: blocks of added lines are surrounded by exactly one topic branch commit
+
+    Regardless of strictness level, removed lines are correlated with the
+    commit they're blamed on, and all the blocks of changed lines in a hunk
+    must be correlated with the same topic branch commit in order to be
+    assigned to it. See the --help for more details.
 END
 
 # Parse hunks out of `git diff` output. Return an array of hunk hashrefs.
