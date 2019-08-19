@@ -384,12 +384,6 @@ sub get_fixup_hunks_by_sha {
     my %hunks_for;
     for my $hunk (@{$hunks}) {
         my $blame = $blame_for->{$hunk};
-        my $sha = get_fixup_sha({
-            hunk => $hunk,
-            blame => $blame,
-            summary_for => $summary_for,
-            strict => $strict,
-        });
         if ($verbose > 1) {
             print_hunk_blamediff({
                 fh => *STDOUT,
@@ -399,6 +393,12 @@ sub get_fixup_hunks_by_sha {
                 blame_indexes => get_blame_indexes($hunk)
             });
         }
+        my $sha = get_fixup_sha({
+            hunk => $hunk,
+            blame => $blame,
+            summary_for => $summary_for,
+            strict => $strict,
+        });
         next if !$sha;
         push @{$hunks_for{$sha}}, $hunk;
     }
