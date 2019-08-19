@@ -1,3 +1,8 @@
+# 0.002007
+
+- Fix hunk parsing for files with multiple hunks (broken in 0.002006)
+- Create fixup commits in a consistent order
+
 # 0.002006
 
 - Improve docs for the --strict option
