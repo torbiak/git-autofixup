@@ -405,6 +405,28 @@ sub get_fixup_hunks_by_sha {
     return \%hunks_for;
 }
 
+# Return SHAs in some consistent order.
+#
+# Currently they're ordered by how early their assigned hunks appear in the
+# working dir diff output.
+sub get_ordered_shas {
+    my $hunks = shift;
+    my $hunks_for = shift;
+    my $nsha = scalar keys %{$hunks_for};
+    my @ordered = ();
+    for my $tgt (@{$hunks}) {
+        last if (@ordered >= $nsha);
+        for my $sha (keys %{$hunks_for}) {
+            my $sha_hunks = $hunks_for->{$sha};
+            if (grep {$_->{file} eq $tgt->{file} && $_->{start} == $tgt->{start}} @{$sha_hunks}) {
+                push @ordered, $sha;
+                last;
+            }
+        }
+    }
+    return @ordered;
+}
+
 sub main {
     $verbose = 0;
     my $num_context_lines = 3;
@@ -467,7 +489,9 @@ sub main {
         summary_for => $summary_for,
         strict => $strict,
     });
-    while (my ($sha, $fixup_hunks) = each %{$hunks_for}) {
+    my @ordered_shas = get_ordered_shas($hunks, $hunks_for);
+    for my $sha (@ordered_shas) {
+        my $fixup_hunks = $hunks_for->{$sha};
         commit_fixup($sha, $fixup_hunks);
     }
     return 0;
