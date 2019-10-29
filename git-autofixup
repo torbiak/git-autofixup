@@ -335,7 +335,7 @@ sub blame {
 
 sub get_diff_hunks {
     my $num_context_lines = shift;
-    my @cmd = (qw(git diff --ignore-submodules), "-U$num_context_lines");
+    my @cmd = (qw(git -c diff.noprefix=false diff --ignore-submodules), "-U$num_context_lines");
     open(my $fh, '-|', @cmd) or die $!;
     my @hunks = parse_hunks($fh, keep_lines => 1);
     close($fh) or die "git diff: non-zero exit code";

@@ -168,7 +168,7 @@ sub write_file {
 
 sub get_git_log {
     my $revision = shift;
-    my $log = qx{git log -p --format=%s ${revision}..};
+    my $log = qx{git -c diff.noprefix=false log -p --format=%s ${revision}..};
     if ($? != 0) {
         croak "git log: $?\n";
     }
