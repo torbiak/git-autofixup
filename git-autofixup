@@ -11,6 +11,7 @@ use Getopt::Long qw(:config bundling);
 our $VERSION = 0.002007; # X.YYYZZZ
 
 my $verbose;
+my @GIT_OPTIONS;
 
 # Strictness levels.
 my ($CONTEXT, $ADJACENT, $SURROUNDED) = (0..10);
@@ -36,6 +37,8 @@ usage: git-autofixup [<options>] <revision>
     commit they're blamed on, and all the blocks of changed lines in a hunk
     must be correlated with the same topic branch commit in order to be
     assigned to it. See the --help for more details.
+-g ARG, --gitopt ARG
+    Specify option for git. Can be used multiple times.
 END
 
 # Parse hunks out of `git diff` output. Return an array of hunk hashrefs.
@@ -80,6 +83,10 @@ sub parse_hunks {
         }
     }
     return @hunks;
+}
+
+sub git_cmd {
+    return ('git', @GIT_OPTIONS, @_);
 }
 
 sub get_summary_for_commits {
@@ -310,8 +317,8 @@ sub blame {
     if ($hunk->{count} == 0) {
         return {};
     }
-    my @cmd = (
-        'git', 'blame', '--porcelain',
+    my @cmd = get_git_cmd(
+        'blame', '--porcelain',
         '-L' => "$hunk->{start},+$hunk->{count}",
         'HEAD', '--',
         "$hunk->{file}");
@@ -335,7 +342,7 @@ sub blame {
 
 sub get_diff_hunks {
     my $num_context_lines = shift;
-    my @cmd = (qw(git -c diff.noprefix=false diff --ignore-submodules), "-U$num_context_lines");
+    my @cmd = get_git_cmd(qw(-c diff.noprefix=false diff --ignore-submodules), "-U$num_context_lines");
     open(my $fh, '-|', @cmd) or die $!;
     my @hunks = parse_hunks($fh, keep_lines => 1);
     close($fh) or die "git diff: non-zero exit code";
@@ -344,7 +351,7 @@ sub get_diff_hunks {
 
 sub commit_fixup {
     my ($sha, $hunks) = @_;
-    open my $fh, '|-', 'git apply --unidiff-zero --cached -' or die "git apply: $!\n";
+    open my $fh, '|-', get_git_cmd(qw(apply --unidiff-zero --cached -)) or die "git apply: $!\n";
     for my $hunk (@{$hunks}) {
         print({$fh}
             "--- a/$hunk->{file}\n",
@@ -354,12 +361,12 @@ sub commit_fixup {
         );
     }
     close $fh or die "git apply: non-zero exit code\n";
-    system('git', 'commit', "--fixup=$sha") == 0 or die "git commit: $!\n";
+    system(get_git_cmd('commit', "--fixup=$sha")) == 0 or die "git commit: $!\n";
     return;
 }
 
 sub is_index_dirty {
-    open(my $fh, '-|', 'git status --porcelain') or die "git status: $!\n";
+    open(my $fh, '-|', get_git_cmd(qw(status --porcelain))) or die "git status: $!\n";
     my $dirty;
     while (my $line = <$fh>) {
         if ($line =~ /^[^?! ]/) {
@@ -441,6 +448,7 @@ sub main {
         'verbose|v+' => \$verbose,
         'strict|s=i' => \$strict,
         'context|c=i' => \$num_context_lines,
+        'gitopt|g=s' => \@GIT_OPTIONS,
     ) or return 1;
     if ($help) {
         print $usage;
@@ -566,6 +574,12 @@ Change the number of context lines C<git diff> uses around hunks. Default: 3. Th
 =item -s N, --strict N
 
 Set how strict F<git-autofixup> is about assigning hunks to fixup commits. Default: 0. Strictness levels are described under DESCRIPTION.
+
+=item -g ARG, --gitopt ARG
+
+Specify option for git. Can be used multiple times. Useful for testing, to override config options that break git-autofixup, or to override global diff options to tweak what git-autofixup considers a hunk.
+
+Note ARG won't be wordsplit, so to give multiple arguments, such as for setting a config option like C<-c diff.algorithm>, this option must be used multiple times: C<-g -c -g diff.algorithm=patience>.
 
 =back
 
