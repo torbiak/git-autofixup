@@ -56,7 +56,7 @@ sub parse_hunks {
             my $header = $line;
 
             for ($file_a, $file_b) {
-                s#^[ab]/##;
+                s#^[abiwco]/##;
             }
 
             next if $file_a ne $file_b; # Ignore creations and deletions.

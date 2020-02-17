@@ -13,7 +13,7 @@ if ($OSNAME eq 'MSWin32') {
 } elsif (!has_git()) {
     plan skip_all => 'git version 1.7.4+ required'
 } else {
-    plan tests => 34;
+    plan tests => 35;
 }
 
 require './git-autofixup';
@@ -506,4 +506,20 @@ index 50de7e8..d9f44da 100644
  a2
  a3
  a4
+}});
+
+test_autofixup({
+    name => "single-line change gets autofixed when mnemonic prefixes are enabled",
+    topic_commits => [{a => "a1\n"}],
+    unstaged => {a => "a2\n"},
+    autofixup_opts => ['-g', '-c', '-g', 'diff.mnemonicPrefix=true'],
+    log_want => q{fixup! commit0
+
+diff --git a/a b/a
+index da0f8ed..c1827f0 100644
+--- a/a
++++ b/a
+@@ -1 +1 @@
+-a1
++a2
 }});
