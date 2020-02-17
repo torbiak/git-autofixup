@@ -10,7 +10,7 @@ use Getopt::Long qw(:config bundling);
 
 our $VERSION = 0.002007; # X.YYYZZZ
 
-my $verbose;
+my $VERBOSE;
 my @GIT_OPTIONS;
 
 # Strictness levels.
@@ -150,16 +150,16 @@ sub get_fixup_sha {
     my $upstream_is_blamed = grep {!defined $summary_for->{$_}} @targets;
     my @topic_targets = grep {defined $summary_for->{$_}} @targets;
     if ($strict && $upstream_is_blamed) {
-        $verbose && print hunk_desc($hunk), " changes lines blamed on upstream\n";
+        $VERBOSE && print hunk_desc($hunk), " changes lines blamed on upstream\n";
         return;
     } elsif (@topic_targets > 1) {
-        $verbose && print hunk_desc($hunk), " has multiple targets\n";
+        $VERBOSE && print hunk_desc($hunk), " has multiple targets\n";
         return;
     } elsif (@topic_targets == 0) {
-        $verbose && print hunk_desc($hunk), " has no targets\n";
+        $VERBOSE && print hunk_desc($hunk), " has no targets\n";
         return;
     }
-    if ($verbose) {
+    if ($VERBOSE) {
         printf "%s fixes %s %s\n",
             hunk_desc($hunk),
             substr($topic_targets[0], 0, 8),
@@ -391,7 +391,7 @@ sub get_fixup_hunks_by_sha {
     my %hunks_for;
     for my $hunk (@{$hunks}) {
         my $blame = $blame_for->{$hunk};
-        if ($verbose > 1) {
+        if ($VERBOSE > 1) {
             print_hunk_blamediff({
                 fh => *STDOUT,
                 hunk => $hunk,
@@ -435,7 +435,7 @@ sub get_ordered_shas {
 }
 
 sub main {
-    $verbose = 0;
+    $VERBOSE = 0;
     my $num_context_lines = 3;
     my $strict = $CONTEXT;
     my $man;
@@ -445,7 +445,7 @@ sub main {
         'h' => \$help,
         'help' => \$man,
         'version' => \$show_version,
-        'verbose|v+' => \$verbose,
+        'verbose|v+' => \$VERBOSE,
         'strict|s=i' => \$strict,
         'context|c=i' => \$num_context_lines,
         'gitopt|g=s' => \@GIT_OPTIONS,
