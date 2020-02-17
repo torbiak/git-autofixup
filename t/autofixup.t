@@ -13,7 +13,7 @@ if ($OSNAME eq 'MSWin32') {
 } elsif (!has_git()) {
     plan skip_all => 'git version 1.7.4+ required'
 } else {
-    plan tests => 35;
+    plan tests => 36;
 }
 
 require './git-autofixup';
@@ -513,6 +513,22 @@ test_autofixup({
     topic_commits => [{a => "a1\n"}],
     unstaged => {a => "a2\n"},
     autofixup_opts => ['-g', '-c', '-g', 'diff.mnemonicPrefix=true'],
+    log_want => q{fixup! commit0
+
+diff --git a/a b/a
+index da0f8ed..c1827f0 100644
+--- a/a
++++ b/a
+@@ -1 +1 @@
+-a1
++a2
+}});
+
+test_autofixup({
+    name => "single-line change gets autofixed when diff.external is set",
+    topic_commits => [{a => "a1\n"}],
+    unstaged => {a => "a2\n"},
+    autofixup_opts => ['-g', '-c', '-g', 'diff.external=vimdiff'],
     log_want => q{fixup! commit0
 
 diff --git a/a b/a
