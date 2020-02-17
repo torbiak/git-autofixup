@@ -39,6 +39,7 @@ usage: git-autofixup [<options>] <revision>
     assigned to it. See the --help for more details.
 -g ARG, --gitopt ARG
     Specify option for git. Can be used multiple times.
+-e, --exit-code    use more detailed exit codes (see --help)
 END
 
 # Parse hunks out of `git diff` output. Return an array of hunk hashrefs.
@@ -439,6 +440,7 @@ sub main {
     my $num_context_lines = 3;
     my $strict = $CONTEXT;
     my $man;
+    my $use_detailed_exit_codes;
 
     my ($help, $show_version);
     GetOptions(
@@ -449,6 +451,7 @@ sub main {
         'strict|s=i' => \$strict,
         'context|c=i' => \$num_context_lines,
         'gitopt|g=s' => \@GIT_OPTIONS,
+        'exit-code' => \$use_detailed_exit_codes,
     ) or return 1;
     if ($help) {
         print $usage;
@@ -501,6 +504,28 @@ sub main {
     for my $sha (@ordered_shas) {
         my $fixup_hunks = $hunks_for->{$sha};
         commit_fixup($sha, $fixup_hunks);
+    }
+    if ($use_detailed_exit_codes) {
+        my $hunk_count = scalar @{$hunks};
+
+        my $assigned_hunk_count = 0;
+        for (values %{$hunks_for}) {
+            $assigned_hunk_count += @{$_};
+        }
+
+        my $rc;
+        if ($hunk_count == 0) {
+            $rc = 3;  # no hunks to assign
+        } elsif ($assigned_hunk_count == 0) {
+            $rc = 2;  # hunks exist, but none assigned
+        } elsif ($assigned_hunk_count < $hunk_count) {
+            $rc = 1;  # not all hunks assigned
+        } elsif ($hunk_count == $assigned_hunk_count) {
+            $rc = 0;  # all hunks assigned
+        } else {
+            die "unexpected conditions when choosing exit code";
+        }
+        return $rc;
     }
     return 0;
 }
@@ -580,6 +605,34 @@ Set how strict F<git-autofixup> is about assigning hunks to fixup commits. Defau
 Specify option for git. Can be used multiple times. Useful for testing, to override config options that break git-autofixup, or to override global diff options to tweak what git-autofixup considers a hunk.
 
 Note ARG won't be wordsplit, so to give multiple arguments, such as for setting a config option like C<-c diff.algorithm>, this option must be used multiple times: C<-g -c -g diff.algorithm=patience>.
+
+=item -e, --exit-code
+
+Use more detailed exit codes:
+
+=over
+
+=item 0
+
+All hunks have been assigned.
+
+=item 1
+
+Only some hunks have been assigned.
+
+=item 2
+
+No hunks have been assigned.
+
+=item 3
+
+There was nothing to be assigned.
+
+=item 255
+
+Unexpected error occurred.
+
+=back
 
 =back
 
