@@ -89,7 +89,7 @@ sub git_cmd {
     return ('git', @GIT_OPTIONS, @_);
 }
 
-sub get_summary_for_commits {
+sub summary_for_commits {
     my $rev = shift;
     my %commits;
     for (qx(git log --no-merges --format=%H:%s $rev..)) {
@@ -101,7 +101,7 @@ sub get_summary_for_commits {
 }
 
 # Return targets of fixup!/squash! commits.
-sub get_sha_aliases {
+sub sha_aliases {
     my $summary_for = shift;
     my %aliases;
     my @targets = keys(%{$summary_for});
@@ -124,7 +124,7 @@ sub get_sha_aliases {
     return \%aliases;
 }
 
-sub get_fixup_sha {
+sub fixup_sha {
     my $args = shift;
     my $hunk = $args->{hunk};
     my $blame = $args->{blame};
@@ -136,15 +136,15 @@ sub get_fixup_sha {
 
     my @targets;
     if ($args->{strict} == $CONTEXT) {
-        @targets = get_fixup_targets_from_all_context($args);
+        @targets = fixup_targets_from_all_context($args);
         my @topic_targets = grep {defined $summary_for->{$_}} @targets;
         if (@topic_targets > 1) {
             # The context assignment is ambiguous, but an adjacency assignment
             # might not be.
-            @targets = get_fixup_targets_from_adjacent_context($args);
+            @targets = fixup_targets_from_adjacent_context($args);
         }
     } else {
-        @targets = get_fixup_targets_from_adjacent_context($args);
+        @targets = fixup_targets_from_adjacent_context($args);
     }
 
     my $upstream_is_blamed = grep {!defined $summary_for->{$_}} @targets;
@@ -176,7 +176,7 @@ sub hunk_desc {
     );
 }
 
-sub get_fixup_targets_from_all_context {
+sub fixup_targets_from_all_context {
     my $args = shift;
     my ($hunk, $blame, $summary_for) = @{$args}{qw(hunk blame summary_for)};
     croak 'missing argument' if grep {!defined} ($hunk, $blame, $summary_for);
@@ -190,7 +190,7 @@ sub uniq {
     return grep {!$seen{$_}++} @_;
 }
 
-sub get_fixup_targets_from_adjacent_context {
+sub fixup_targets_from_adjacent_context {
     my $args = shift;
     my $hunk = $args->{hunk};
     my $blame = $args->{blame};
@@ -200,7 +200,7 @@ sub get_fixup_targets_from_adjacent_context {
         croak 'missing argument';
     }
 
-    my $blame_indexes = get_blame_indexes($hunk);
+    my $blame_indexes = blame_indexes($hunk);
 
     my %blamed;
     my $diff = $hunk->{lines};
@@ -244,7 +244,7 @@ sub startswith {
 }
 
 # Map lines in a hunk's diff to the corresponding `git blame HEAD` output.
-sub get_blame_indexes {
+sub blame_indexes {
     my $hunk = shift;
     my @indexes;
     my $bi = $hunk->{start};
@@ -317,7 +317,7 @@ sub blame {
     if ($hunk->{count} == 0) {
         return {};
     }
-    my @cmd = get_git_cmd(
+    my @cmd = git_cmd(
         'blame', '--porcelain',
         '-L' => "$hunk->{start},+$hunk->{count}",
         'HEAD', '--',
@@ -340,9 +340,9 @@ sub blame {
     return \%blame;
 }
 
-sub get_diff_hunks {
+sub diff_hunks {
     my $num_context_lines = shift;
-    my @cmd = get_git_cmd(qw(-c diff.noprefix=false diff --ignore-submodules), "-U$num_context_lines");
+    my @cmd = git_cmd(qw(-c diff.noprefix=false diff --ignore-submodules), "-U$num_context_lines");
     open(my $fh, '-|', @cmd) or die $!;
     my @hunks = parse_hunks($fh, keep_lines => 1);
     close($fh) or die "git diff: non-zero exit code";
@@ -351,7 +351,7 @@ sub get_diff_hunks {
 
 sub commit_fixup {
     my ($sha, $hunks) = @_;
-    open my $fh, '|-', get_git_cmd(qw(apply --unidiff-zero --cached -)) or die "git apply: $!\n";
+    open my $fh, '|-', git_cmd(qw(apply --unidiff-zero --cached -)) or die "git apply: $!\n";
     for my $hunk (@{$hunks}) {
         print({$fh}
             "--- a/$hunk->{file}\n",
@@ -361,12 +361,12 @@ sub commit_fixup {
         );
     }
     close $fh or die "git apply: non-zero exit code\n";
-    system(get_git_cmd('commit', "--fixup=$sha")) == 0 or die "git commit: $!\n";
+    system(git_cmd('commit', "--fixup=$sha")) == 0 or die "git commit: $!\n";
     return;
 }
 
 sub is_index_dirty {
-    open(my $fh, '-|', get_git_cmd(qw(status --porcelain))) or die "git status: $!\n";
+    open(my $fh, '-|', git_cmd(qw(status --porcelain))) or die "git status: $!\n";
     my $dirty;
     while (my $line = <$fh>) {
         if ($line =~ /^[^?! ]/) {
@@ -378,7 +378,7 @@ sub is_index_dirty {
     return $dirty;
 }
 
-sub get_fixup_hunks_by_sha {
+sub fixup_hunks_by_sha {
     my $args = shift;
     my $hunks = $args->{hunks};
     my $blame_for = $args->{blame_for};
@@ -397,10 +397,10 @@ sub get_fixup_hunks_by_sha {
                 hunk => $hunk,
                 summary_for => $summary_for,
                 blame => $blame,
-                blame_indexes => get_blame_indexes($hunk)
+                blame_indexes => blame_indexes($hunk)
             });
         }
-        my $sha = get_fixup_sha({
+        my $sha = fixup_sha({
             hunk => $hunk,
             blame => $blame,
             summary_for => $summary_for,
@@ -416,7 +416,7 @@ sub get_fixup_hunks_by_sha {
 #
 # Currently they're ordered by how early their assigned hunks appear in the
 # working dir diff output.
-sub get_ordered_shas {
+sub ordered_shas {
     my $hunks = shift;
     my $hunks_for = shift;
     my $nsha = scalar keys %{$hunks_for};
@@ -487,17 +487,17 @@ sub main {
         die "There are staged changes. Clean up the index and try again.\n";
     }
 
-    my $hunks = get_diff_hunks($num_context_lines);
-    my $summary_for = get_summary_for_commits($upstream);
-    my $alias_for = get_sha_aliases($summary_for);
+    my $hunks = diff_hunks($num_context_lines);
+    my $summary_for = summary_for_commits($upstream);
+    my $alias_for = sha_aliases($summary_for);
     my %blame_for = map {$_ => blame($_, $alias_for)} @{$hunks};
-    my $hunks_for = get_fixup_hunks_by_sha({
+    my $hunks_for = fixup_hunks_by_sha({
         hunks => $hunks,
         blame_for => \%blame_for,
         summary_for => $summary_for,
         strict => $strict,
     });
-    my @ordered_shas = get_ordered_shas($hunks, $hunks_for);
+    my @ordered_shas = ordered_shas($hunks, $hunks_for);
     for my $sha (@ordered_shas) {
         my $fixup_hunks = $hunks_for->{$sha};
         commit_fixup($sha, $fixup_hunks);
