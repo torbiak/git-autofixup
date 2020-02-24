@@ -437,6 +437,30 @@ sub ordered_shas {
     return @ordered;
 }
 
+sub exit_code {
+    my ($hunks, $hunks_for) = @_;
+    my $hunk_count = scalar @{$hunks};
+
+    my $assigned_hunk_count = 0;
+    for (values %{$hunks_for}) {
+        $assigned_hunk_count += @{$_};
+    }
+
+    my $rc;
+    if ($hunk_count == 0) {
+        $rc = 3;  # no hunks to assign
+    } elsif ($assigned_hunk_count == 0) {
+        $rc = 2;  # hunks exist, but none assigned
+    } elsif ($assigned_hunk_count < $hunk_count) {
+        $rc = 1;  # not all hunks assigned
+    } elsif ($hunk_count == $assigned_hunk_count) {
+        $rc = 0;  # all hunks assigned
+    } else {
+        die "unexpected conditions when choosing exit code";
+    }
+    return $rc;
+}
+
 sub main {
     $VERBOSE = 0;
     my $num_context_lines = 3;
@@ -508,26 +532,7 @@ sub main {
         commit_fixup($sha, $fixup_hunks);
     }
     if ($use_detailed_exit_codes) {
-        my $hunk_count = scalar @{$hunks};
-
-        my $assigned_hunk_count = 0;
-        for (values %{$hunks_for}) {
-            $assigned_hunk_count += @{$_};
-        }
-
-        my $rc;
-        if ($hunk_count == 0) {
-            $rc = 3;  # no hunks to assign
-        } elsif ($assigned_hunk_count == 0) {
-            $rc = 2;  # hunks exist, but none assigned
-        } elsif ($assigned_hunk_count < $hunk_count) {
-            $rc = 1;  # not all hunks assigned
-        } elsif ($hunk_count == $assigned_hunk_count) {
-            $rc = 0;  # all hunks assigned
-        } else {
-            die "unexpected conditions when choosing exit code";
-        }
-        return $rc;
+        return exit_code($hunks, $hunks_for);
     }
     return 0;
 }
