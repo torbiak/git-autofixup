@@ -63,6 +63,7 @@ sub test_autofixup_strict {
 # upstream_commits: sub or hash refs that must not be fixed up
 # topic_commits: sub or hash refs representing commits that can be fixed up
 # unstaged: sub or hash ref of working directory changes
+# staged: sub or hash ref of index changes
 # log_want: expected log output
 # autofixup_opts: command-line options to pass thru to autofixup
 sub test_autofixup {
@@ -73,11 +74,15 @@ sub test_autofixup {
     my $topic_commits = $args->{topic_commits} || [];
     my $unstaged = defined($args->{unstaged}) ? $args->{unstaged}
                  : croak "no unstaged changes given";
+    my $staged = $args->{staged};
     my $log_want = defined($args->{log_want}) ? $args->{log_want}
                  : croak "wanted log output not given";
+    my $unstaged_want = $args->{unstaged_want};
     my $exit_code_want = $args->{exit_code};
+    my $use_index = $args->{use_index};
     my $autofixup_opts = $args->{autofixup_opts} || [];
     push @{$autofixup_opts}, '--exit-code';
+    $use_index && push @{$autofixup_opts}, '--use-index';
     if (!$upstream_commits && !$topic_commits) {
         croak "no upstream or topic commits given";
     }
@@ -87,6 +92,7 @@ sub test_autofixup {
 
     my $exit_code_got;
     my $log_got;
+    my $unstaged_got;
     my $orig_dir = getcwd();
     my $dir = File::Temp::tempdir(CLEANUP => 1);
     chdir $dir or die "$!";
@@ -110,11 +116,21 @@ sub test_autofixup {
         }
         my $pre_fixup_rev = get_revision_sha();
 
+        if (defined($staged)) {
+            apply_change($staged);
+            # We're at the repo root, so using -A will change everything even
+            # in pre-v2 versions of git. See git commit 808d3d717e8.
+            run("git add -A");
+        }
+
         apply_change($unstaged);
 
         run("git --no-pager log --format='%h %s' ${upstream_rev}..");
         $exit_code_got = autofixup(@{$autofixup_opts}, $upstream_rev);
-        $log_got = get_git_log($pre_fixup_rev);
+        $log_got = git_log(${pre_fixup_rev});
+        if (defined($unstaged_want)) {
+            $unstaged_got = diff('HEAD');
+        }
     };
     my $err = $@;
     chdir $orig_dir or die "$!";
@@ -123,11 +139,27 @@ sub test_autofixup {
         fail($name);
         return;
     }
-    is($log_got, $log_want, $name);
+
+    my $failed = 0;
+    if ($log_got ne $log_want) {
+        diag("log_got=<<EOF\n${log_got}EOF\nlog_want=<<EOF\n${log_want}EOF\n");
+        $failed = 1;
+    }
+
+    if (defined($unstaged_want) && $unstaged_want ne $unstaged_got) {
+        diag("unstaged_got=<<EOF\n${unstaged_got}EOF\nunstaged_want=<<EOF\n${unstaged_want}EOF\n");
+        $failed = 1;
+    }
+
     if (defined($exit_code_want) && $exit_code_got != $exit_code_want) {
         diag("exit_code_want=$exit_code_want,exit_code_got=$exit_code_got");
+        $failed = 1;
+    }
+
+    if ($failed) {
         fail($name);
-        return;
+    } else {
+        pass($name);
     }
 }
 
@@ -174,13 +206,22 @@ sub write_file {
     close $fh or croak "$!";
 }
 
-sub get_git_log {
+sub git_log {
     my $revision = shift;
     my $log = qx{git -c diff.noprefix=false log -p --format=%s ${revision}..};
     if ($? != 0) {
         croak "git log: $?\n";
     }
     return $log;
+}
+
+sub diff {
+    my $revision = shift;
+    my $diff = qx{git -c diff.noprefix=false diff ${revision}};
+    if ($? != 0) {
+        croak "git diff $?\n";
+    }
+    return $diff;
 }
 
 sub get_revision_sha {
@@ -620,4 +661,30 @@ index 5d11004..0054137 100644
  a8
 -a9.0
 +a9.1
+}});
+
+test_autofixup({
+    name => "only staged hunks get autofixed",
+    topic_commits => [{a => "a1\n", b => "b1\n"}],
+    staged => {a => "a2\n"},
+    unstaged => {b => "b2\n"},
+    exit_code => 0,
+    use_index => 1,
+    log_want => q{fixup! commit0
+
+diff --git a/a b/a
+index da0f8ed..c1827f0 100644
+--- a/a
++++ b/a
+@@ -1 +1 @@
+-a1
++a2
+},
+    unstaged_want => q{diff --git a/b b/b
+index c9c6af7..e6bfff5 100644
+--- a/b
++++ b/b
+@@ -1 +1 @@
+-b1
++b2
 }});

@@ -7,6 +7,7 @@ use warnings FATAL => 'all';
 use Carp qw(croak);
 use Pod::Usage;
 use Getopt::Long qw(:config bundling);
+use File::Temp qw(:mktemp);
 
 our $VERSION = 0.002007; # X.YYYZZZ
 
@@ -37,6 +38,7 @@ usage: git-autofixup [<options>] <revision>
     commit they're blamed on, and all the blocks of changed lines in a hunk
     must be correlated with the same topic branch commit in order to be
     assigned to it. See the --help for more details.
+-i, --use-index    only autofixup staged hunks
 -g ARG, --gitopt ARG
     Specify option for git. Can be used multiple times.
 -e, --exit-code    use more detailed exit codes (see --help)
@@ -342,8 +344,11 @@ sub blame {
 }
 
 sub diff_hunks {
-    my $num_context_lines = shift;
+    my ($use_index, $num_context_lines) = @_;
     my @cmd = git_cmd(qw(-c diff.noprefix=false diff --no-ext-diff --ignore-submodules), "-U$num_context_lines");
+    if ($use_index) {
+        push @cmd, "--cached";
+    }
     open(my $fh, '-|', @cmd) or die $!;
     my @hunks = parse_hunks($fh, keep_lines => 1);
     close($fh) or die "git diff: non-zero exit code";
@@ -461,12 +466,23 @@ sub exit_code {
     return $rc;
 }
 
+# Create a temporary index so we can creaft commits with already-staged hunks.
+sub create_temp_index {
+    my (undef, $tmp_index) = mkstemp('git-autofixup_index.XXXXXX');
+    $ENV{GIT_INDEX_FILE} = $tmp_index;
+    # A blank index makes it look like we're deleting everything, so read
+    # HEAD's tree into it.
+    qx(git read-tree @^{tree});
+    $? == 0 or die "Can't read HEAD's tree into temp index.\n";
+}
+
 sub main {
     $VERBOSE = 0;
     my $num_context_lines = 3;
     my $strict = $CONTEXT;
     my $man;
     my $use_detailed_exit_codes;
+    my $use_index;
 
     my ($help, $show_version);
     GetOptions(
@@ -478,6 +494,7 @@ sub main {
         'context|c=i' => \$num_context_lines,
         'gitopt|g=s' => \@GIT_OPTIONS,
         'exit-code' => \$use_detailed_exit_codes,
+        'use-index' => \$use_index,
     ) or return 1;
     if ($help) {
         print $usage;
@@ -512,11 +529,11 @@ sub main {
     $? == 0 or die "Can't get repo toplevel dir\n";
     chdir $toplevel or die $!;
 
-    if (is_index_dirty()) {
+    if (!$use_index && is_index_dirty()) {
         die "There are staged changes. Clean up the index and try again.\n";
     }
 
-    my $hunks = diff_hunks($num_context_lines);
+    my $hunks = diff_hunks($use_index, $num_context_lines);
     my $summary_for = summary_for_commits($upstream);
     my $alias_for = sha_aliases($summary_for);
     my %blame_for = map {$_ => blame($_, $alias_for)} @{$hunks};
@@ -527,6 +544,11 @@ sub main {
         strict => $strict,
     });
     my @ordered_shas = ordered_shas($hunks, $hunks_for);
+
+    if ($use_index) {
+        create_temp_index();
+    }
+
     for my $sha (@ordered_shas) {
         my $fixup_hunks = $hunks_for->{$sha};
         commit_fixup($sha, $fixup_hunks);
@@ -606,6 +628,10 @@ Change the number of context lines C<git diff> uses around hunks. Default: 3. Th
 =item -s N, --strict N
 
 Set how strict F<git-autofixup> is about assigning hunks to fixup commits. Default: 0. Strictness levels are described under DESCRIPTION.
+
+=item -i, --use-index
+
+Only autofixup hunks that have been staged for the next commit, or in other words added to the index, using C<git add>. A temporary index is used to create any resulting fixup commits.
 
 =item -g ARG, --gitopt ARG
 
