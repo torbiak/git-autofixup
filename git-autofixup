@@ -25,6 +25,8 @@ usage: git-autofixup [<options>] <revision>
 --version          show version
 -v, --verbose      increase verbosity (use up to 2 times)
 -c N, --context N  set number of diff context lines (default 3)
+-i, --use-index    only autofixup staged hunks
+-e, --exit-code    use more detailed exit codes (see --help)
 -s N, --strict N   set strictness (default 0)
     Assign a hunk to fixup a topic branch commit if:
 
@@ -38,10 +40,8 @@ usage: git-autofixup [<options>] <revision>
     commit they're blamed on, and all the blocks of changed lines in a hunk
     must be correlated with the same topic branch commit in order to be
     assigned to it. See the --help for more details.
--i, --use-index    only autofixup staged hunks
 -g ARG, --gitopt ARG
     Specify option for git. Can be used multiple times.
--e, --exit-code    use more detailed exit codes (see --help)
 END
 
 # Parse hunks out of `git diff` output. Return an array of hunk hashrefs.
