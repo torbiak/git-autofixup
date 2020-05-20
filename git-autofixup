@@ -422,12 +422,14 @@ sub ordered_shas {
     my $hunks_for = shift;
     my $nsha = scalar keys %{$hunks_for};
     my @ordered = ();
+    my %have = ();
     for my $tgt (@{$hunks}) {
         last if (@ordered >= $nsha);
-        for my $sha (keys %{$hunks_for}) {
+        for my $sha (grep {!$have{$_}} keys %{$hunks_for}) {
             my $sha_hunks = $hunks_for->{$sha};
             if (grep {$_->{file} eq $tgt->{file} && $_->{start} == $tgt->{start}} @{$sha_hunks}) {
                 push @ordered, $sha;
+                $have{$sha} = 1;
                 last;
             }
         }

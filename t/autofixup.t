@@ -13,7 +13,7 @@ if ($OSNAME eq 'MSWin32') {
 } elsif (!has_git()) {
     plan skip_all => 'git version 1.7.4+ required'
 } else {
-    plan tests => 37;
+    plan tests => 38;
 }
 
 require './git-autofixup';
@@ -583,4 +583,41 @@ index c9c6af7..e6bfff5 100644
 @@ -1 +1 @@
 -b1
 +b2
+}});
+
+test_autofixup({
+    name => "multiple hunks to the same commit",
+    topic_commits => [
+        {a => "a1.0\na2\na3\na4\na5\na6\na7\na8\na9.0\n"},
+        {b => "b1.0\n"},
+    ],
+    unstaged => {'a' =>  "a1.1\na2\na3\na4\na5\na6\na7\na8\na9.1\n", b => "b1.1\n"},
+    exit_code => 0,
+    log_want => q{fixup! commit1
+
+diff --git a/b b/b
+index 253a619..6419a9e 100644
+--- a/b
++++ b/b
+@@ -1 +1 @@
+-b1.0
++b1.1
+fixup! commit0
+
+diff --git a/a b/a
+index 5d11004..0054137 100644
+--- a/a
++++ b/a
+@@ -1,4 +1,4 @@
+-a1.0
++a1.1
+ a2
+ a3
+ a4
+@@ -6,4 +6,4 @@ a5
+ a6
+ a7
+ a8
+-a9.0
++a9.1
 }});
