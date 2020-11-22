@@ -13,7 +13,7 @@ if ($OSNAME eq 'MSWin32') {
 } elsif (!has_git()) {
     plan skip_all => 'git version 1.7.4+ required'
 } else {
-    plan tests => 38;
+    plan tests => 39;
 }
 
 require './git-autofixup';
@@ -79,10 +79,8 @@ sub test_autofixup {
                  : croak "wanted log output not given";
     my $unstaged_want = $args->{unstaged_want};
     my $exit_code_want = $args->{exit_code};
-    my $use_index = $args->{use_index};
     my $autofixup_opts = $args->{autofixup_opts} || [];
     push @{$autofixup_opts}, '--exit-code';
-    $use_index && push @{$autofixup_opts}, '--use-index';
     if (!$upstream_commits && !$topic_commits) {
         croak "no upstream or topic commits given";
     }
@@ -699,7 +697,6 @@ test_autofixup({
     staged => {a => "a2\n"},
     unstaged => {b => "b2\n"},
     exit_code => 0,
-    use_index => 1,
     log_want => <<'EOF'
 fixup! commit0
 
@@ -719,5 +716,41 @@ index c9c6af7..e6bfff5 100644
 @@ -1 +1 @@
 -b1
 +b2
+EOF
+});
+
+test_autofixup({
+    name => "staged hunks that aren't autofixed remain in index",
+    upstream_commits => [{b => "b1\n"}],
+    topic_commits => [{a => "a1\n", , c => "c1\n"}],
+    staged => {a => "a2\n", b => "b2\n"},
+    unstaged => {c => "c2\n"},
+    exit_code => 1,
+    log_want => <<'EOF'
+fixup! commit1
+
+diff --git a/a b/a
+index da0f8ed..c1827f0 100644
+--- a/a
++++ b/a
+@@ -1 +1 @@
+-a1
++a2
+EOF
+    , unstaged_want => <<'EOF'
+diff --git a/b b/b
+index c9c6af7..e6bfff5 100644
+--- a/b
++++ b/b
+@@ -1 +1 @@
+-b1
++b2
+diff --git a/c b/c
+index ae93045..16f9ec0 100644
+--- a/c
++++ b/c
+@@ -1 +1 @@
+-c1
++c2
 EOF
 });

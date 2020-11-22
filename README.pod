@@ -10,9 +10,11 @@ App::Git::Autofixup - create fixup commits for topic branches
 
 =head1 DESCRIPTION
 
-F<git-autofixup> parses hunks of changes in the working directory out of C<git diff> output and uses C<git blame> to assign those hunks to commits in C<E<lt>revisionE<gt>..HEAD>, which will typically represent a topic branch, and then creates fixup commits to be used with C<git rebase --interactive --autosquash>. [See C<git help revisions> for information about git revision specification syntax.] It is assumed that unstaged changes near changes previously committed to the topic branch are related.
+F<git-autofixup> parses hunks of changes in the working directory out of C<git diff> output and uses C<git blame> to assign those hunks to commits in C<E<lt>revisionE<gt>..HEAD>, which will typically represent a topic branch, and then creates fixup commits to be used with C<git rebase --interactive --autosquash>. [See C<git help revisions> for information about git revision specification syntax.] It is assumed that hunks near changes that were previously committed to the topic branch are related.
 
-C<@{upstream}> or C<@{u}> is likely a convenient value to use for C<E<lt>revisionE<gt>> if the current branch has a tracking branch.
+C<@{upstream}> or C<@{u}> is likely a convenient value to use for C<E<lt>revisionE<gt>> if the current branch has a tracking branch. See C<git help revisions> for other ways to specify revisions.
+
+If any changes have been staged to the index using C<git add>, then F<git-autofixup> will only consider staged hunks when trying to create fixup commits. A temporary index is used to create any resulting commits.
 
 By default a hunk will be included in a fixup commit if all the lines in the hunk's context blamed on topic branch commits refer to the same commit, so there's no ambiguity about which commit the hunk corresponds to. If there is ambiguity the assignment behaviour used under C<--strict 1> will be used to attempt to resolve it. If C<--strict 1> is given the same topic branch commit must be blamed for every removed line and at least one of the lines adjacent to each added line, and added lines must not be adjacent to lines blamed on other topic branch commits. All the same restrictions apply when C<--strict 2> is given, but each added line must be surrounded by lines blamed on the same topic branch commit.
 

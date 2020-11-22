@@ -7,7 +7,8 @@ use warnings FATAL => 'all';
 use Carp qw(croak);
 use Pod::Usage;
 use Getopt::Long qw(:config bundling);
-use File::Temp qw(:mktemp);
+use File::Temp;
+use File::Spec ();
 
 our $VERSION = 0.002007; # X.YYYZZZ
 
@@ -25,7 +26,6 @@ usage: git-autofixup [<options>] <revision>
 --version          show version
 -v, --verbose      increase verbosity (use up to 2 times)
 -c N, --context N  set number of diff context lines (default 3)
--i, --use-index    only autofixup staged hunks
 -e, --exit-code    use more detailed exit codes (see --help)
 -s N, --strict N   set strictness (default 0)
     Assign a hunk to fixup a topic branch commit if:
@@ -119,7 +119,7 @@ sub sha_aliases {
         if (@matches > 1) {
             die "ambiguous fixup commit target: multiple commit summaries start with: $prefix\n";
         } elsif (@matches == 0) {
-            die "no fixup target: $sha";
+            die "no fixup target in topic branch: $sha\n";
         } elsif (@matches == 1) {
             $aliases{$sha} = $matches[0];
         }
@@ -161,12 +161,6 @@ sub fixup_sha {
     } elsif (@topic_targets == 0) {
         $VERBOSE && print hunk_desc($hunk), " has no targets\n";
         return;
-    }
-    if ($VERBOSE) {
-        printf "%s fixes %s %s\n",
-            hunk_desc($hunk),
-            substr($topic_targets[0], 0, 8),
-            $summary_for->{$topic_targets[0]};
     }
     return $topic_targets[0];
 }
@@ -344,9 +338,9 @@ sub blame {
 }
 
 sub diff_hunks {
-    my ($use_index, $num_context_lines) = @_;
+    my $num_context_lines = shift;
     my @cmd = git_cmd(qw(-c diff.noprefix=false diff --no-ext-diff --ignore-submodules), "-U$num_context_lines");
-    if ($use_index) {
+    if (is_index_dirty()) {
         push @cmd, "--cached";
     }
     open(my $fh, '-|', @cmd) or die $!;
@@ -397,6 +391,18 @@ sub fixup_hunks_by_sha {
     my %hunks_for;
     for my $hunk (@{$hunks}) {
         my $blame = $blame_for->{$hunk};
+        my $sha = fixup_sha({
+            hunk => $hunk,
+            blame => $blame,
+            summary_for => $summary_for,
+            strict => $strict,
+        });
+        if ($sha && $VERBOSE) {
+            printf "%s fixes %s %s\n",
+                hunk_desc($hunk),
+                substr($sha, 0, 8),
+                $summary_for->{$sha};
+        }
         if ($VERBOSE > 1) {
             print_hunk_blamediff({
                 fh => *STDOUT,
@@ -406,12 +412,6 @@ sub fixup_hunks_by_sha {
                 blame_indexes => blame_indexes($hunk)
             });
         }
-        my $sha = fixup_sha({
-            hunk => $hunk,
-            blame => $blame,
-            summary_for => $summary_for,
-            strict => $strict,
-        });
         next if !$sha;
         push @{$hunks_for{$sha}}, $hunk;
     }
@@ -466,25 +466,30 @@ sub exit_code {
     return $rc;
 }
 
-# Create a temporary index so we can creaft commits with already-staged hunks.
+# Create a temporary index so we can craft commits with already-staged hunks.
+# Return a File::Temp object so the caller has control over its lifetime.
 sub create_temp_index {
-    my (undef, $tmp_index) = mkstemp('git-autofixup_index.XXXXXX');
-    $ENV{GIT_INDEX_FILE} = $tmp_index;
+    my $tempfile = File::Temp->new(
+        TEMPLATE => 'git-autofixup_index.XXXXXX',
+        DIR => File::Spec->tmpdir());
+    $ENV{GIT_INDEX_FILE} = $tempfile->filename();
     # A blank index makes it look like we're deleting everything, so read
     # HEAD's tree into it.
-    qx(git read-tree @^{tree});
+    qx(git read-tree HEAD^{tree});
     $? == 0 or die "Can't read HEAD's tree into temp index.\n";
+    return $tempfile;
 }
 
 sub main {
     $VERBOSE = 0;
-    my $num_context_lines = 3;
-    my $strict = $CONTEXT;
+    my $help;
     my $man;
+    my $show_version;
+    my $strict = $CONTEXT;
+    my $num_context_lines = 3;
+    my $dryrun;
     my $use_detailed_exit_codes;
-    my $use_index;
 
-    my ($help, $show_version);
     GetOptions(
         'h' => \$help,
         'help' => \$man,
@@ -492,9 +497,9 @@ sub main {
         'verbose|v+' => \$VERBOSE,
         'strict|s=i' => \$strict,
         'context|c=i' => \$num_context_lines,
+        'dryrun|n' => \$dryrun,
         'gitopt|g=s' => \@GIT_OPTIONS,
         'exit-code' => \$use_detailed_exit_codes,
-        'use-index' => \$use_index,
     ) or return 1;
     if ($help) {
         print $usage;
@@ -529,11 +534,7 @@ sub main {
     $? == 0 or die "Can't get repo toplevel dir\n";
     chdir $toplevel or die $!;
 
-    if (!$use_index && is_index_dirty()) {
-        die "There are staged changes. Clean up the index and try again.\n";
-    }
-
-    my $hunks = diff_hunks($use_index, $num_context_lines);
+    my $hunks = diff_hunks($num_context_lines);
     my $summary_for = summary_for_commits($upstream);
     my $alias_for = sha_aliases($summary_for);
     my %blame_for = map {$_ => blame($_, $alias_for)} @{$hunks};
@@ -545,9 +546,16 @@ sub main {
     });
     my @ordered_shas = ordered_shas($hunks, $hunks_for);
 
-    if ($use_index) {
-        create_temp_index();
+    if ($dryrun) {
+        if ($use_detailed_exit_codes) {
+            return exit_code($hunks, $hunks_for);
+        }
+        return 0;
     }
+
+    # Limit the tempfile's lifetime to the execution of main().
+    local $ENV{GIT_INDEX_FILE};  # Throw away ENV changes between main() calls.
+    my $tempfile = create_temp_index();
 
     for my $sha (@ordered_shas) {
         my $fixup_hunks = $hunks_for->{$sha};
@@ -578,9 +586,11 @@ App::Git::Autofixup - create fixup commits for topic branches
 
 =head1 DESCRIPTION
 
-F<git-autofixup> parses hunks of changes in the working directory out of C<git diff> output and uses C<git blame> to assign those hunks to commits in C<E<lt>revisionE<gt>..HEAD>, which will typically represent a topic branch, and then creates fixup commits to be used with C<git rebase --interactive --autosquash>. [See C<git help revisions> for information about git revision specification syntax.] It is assumed that unstaged changes near changes previously committed to the topic branch are related.
+F<git-autofixup> parses hunks of changes in the working directory out of C<git diff> output and uses C<git blame> to assign those hunks to commits in C<E<lt>revisionE<gt>..HEAD>, which will typically represent a topic branch, and then creates fixup commits to be used with C<git rebase --interactive --autosquash>. [See C<git help revisions> for information about git revision specification syntax.] It is assumed that hunks near changes that were previously committed to the topic branch are related.
 
-C<@{upstream}> or C<@{u}> is likely a convenient value to use for C<E<lt>revisionE<gt>> if the current branch has a tracking branch.
+C<@{upstream}> or C<@{u}> is likely a convenient value to use for C<E<lt>revisionE<gt>> if the current branch has a tracking branch. See C<git help revisions> for other ways to specify revisions.
+
+If any changes have been staged to the index using C<git add>, then F<git-autofixup> will only consider staged hunks when trying to create fixup commits. A temporary index is used to create any resulting commits.
 
 By default a hunk will be included in a fixup commit if all the lines in the hunk's context blamed on topic branch commits refer to the same commit, so there's no ambiguity about which commit the hunk corresponds to. If there is ambiguity the assignment behaviour used under C<--strict 1> will be used to attempt to resolve it. If C<--strict 1> is given the same topic branch commit must be blamed for every removed line and at least one of the lines adjacent to each added line, and added lines must not be adjacent to lines blamed on other topic branch commits. All the same restrictions apply when C<--strict 2> is given, but each added line must be surrounded by lines blamed on the same topic branch commit.
 
@@ -628,10 +638,6 @@ Change the number of context lines C<git diff> uses around hunks. Default: 3. Th
 =item -s N, --strict N
 
 Set how strict F<git-autofixup> is about assigning hunks to fixup commits. Default: 0. Strictness levels are described under DESCRIPTION.
-
-=item -i, --use-index
-
-Only autofixup hunks that have been staged for the next commit, or in other words added to the index, using C<git add>. A temporary index is used to create any resulting fixup commits.
 
 =item -g ARG, --gitopt ARG
 
