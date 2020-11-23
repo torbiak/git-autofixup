@@ -1,3 +1,24 @@
+# 0.003000
+
+The most important change to the interface is that now, if there are any hunks
+staged in the index, only those hunks will be considered for assigning to fixup
+commits. A temporary git index is used to make any created fixup commits, so
+any staged hunks that don't get assigned will remain staged. Thanks to Jonas
+Bernoulli and Max Odnoletkov for their help with this.
+
+- Add --gitopt to allow working around git settings issues
+- Add --exit-code option, which gives more granular status about what subset of
+  hunks were assigned to commits
+
+Bug fixes:
+
+- Fix diff commands so that the diff.noprefix, diff.mnemonicPrefix, and
+  diff.external settings don't result in us getting unexpected input. Thanks to
+  Paolo Giarrusso and Ryan Campbell for help with this.
+- Fix bug where multiple hunks assigned to the same commit would result in
+  copies of the same fixup commit, resulting in "patch does not apply" errors.
+  Thanks to Johannes Altmanninger for identifying and fixing this.
+
 # 0.002007
 
 - Fix hunk parsing for files with multiple hunks (broken in 0.002006)

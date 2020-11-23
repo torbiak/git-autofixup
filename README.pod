@@ -63,6 +63,40 @@ Change the number of context lines C<git diff> uses around hunks. Default: 3. Th
 
 Set how strict F<git-autofixup> is about assigning hunks to fixup commits. Default: 0. Strictness levels are described under DESCRIPTION.
 
+=item -g ARG, --gitopt ARG
+
+Specify option for git. Can be used multiple times. Useful for testing, to override config options that break git-autofixup, or to override global diff options to tweak what git-autofixup considers a hunk.
+
+Note ARG won't be wordsplit, so to give multiple arguments, such as for setting a config option like C<-c diff.algorithm>, this option must be used multiple times: C<-g -c -g diff.algorithm=patience>.
+
+=item -e, --exit-code
+
+Use more detailed exit codes:
+
+=over
+
+=item 0
+
+All hunks have been assigned.
+
+=item 1
+
+Only some hunks have been assigned.
+
+=item 2
+
+No hunks have been assigned.
+
+=item 3
+
+There was nothing to be assigned.
+
+=item 255
+
+Unexpected error occurred.
+
+=back
+
 =back
 
 =head1 INSTALLATION
