@@ -421,25 +421,34 @@ sub fixup_hunks_by_sha {
 # Return SHAs in some consistent order.
 #
 # Currently they're ordered by how early their assigned hunks appear in the
-# working dir diff output.
+# diff output. This assumes $hunks is in the order it was parsed from the diff.
+# This ordering seems nice since it'd be similar to the order a human would
+# make commits in if they were working their way down the diff.
 sub ordered_shas {
     my $hunks = shift;
-    my $hunks_for = shift;
-    my $nsha = scalar keys %{$hunks_for};
+    my $sha_for = shift;
     my @ordered = ();
-    my %have = ();
-    for my $tgt (@{$hunks}) {
-        last if (@ordered >= $nsha);
-        for my $sha (grep {!$have{$_}} keys %{$hunks_for}) {
-            my $sha_hunks = $hunks_for->{$sha};
-            if (grep {$_->{file} eq $tgt->{file} && $_->{start} == $tgt->{start}} @{$sha_hunks}) {
-                push @ordered, $sha;
-                $have{$sha} = 1;
-                last;
-            }
+    for my $hunk (@{$hunks}) {
+        if (defined $sha_for->{$hunk}) {
+            push @ordered, $sha_for->{$hunk};
         }
     }
-    return @ordered;
+    return uniq(@ordered);
+}
+
+# Reverse the sha->hunks hashef and return a hunk->sha hashref.
+sub sha_for_hunk_map {
+    my $hunks_for = shift;
+    my %sha_for;
+    for my $sha (keys %{$hunks_for}) {
+        for my $hunk (@{$hunks_for->{$sha}}) {
+            if (defined $sha_for{$hunk}) {
+                die "multiple SHAs for hunk";  # This should never happen.
+            }
+            $sha_for{$hunk} = $sha;
+        }
+    }
+    return \%sha_for;
 }
 
 sub exit_code {
@@ -544,7 +553,7 @@ sub main {
         summary_for => $summary_for,
         strict => $strict,
     });
-    my @ordered_shas = ordered_shas($hunks, $hunks_for);
+    my @ordered_shas = ordered_shas($hunks, sha_for_hunk_map($hunks_for));
 
     if ($dryrun) {
         if ($use_detailed_exit_codes) {

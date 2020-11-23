@@ -655,7 +655,7 @@ EOF
 });
 
 test_autofixup({
-    name => "multiple hunks to the same commit",
+    name => "multiple hunks to the same commit get autofixed",
     topic_commits => [
         {a => "a1.0\na2\na3\na4\na5\na6\na7\na8\na9.0\n"},
         {b => "b1.0\n"},
