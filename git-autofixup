@@ -660,23 +660,23 @@ Use more detailed exit codes:
 
 =over
 
-=item 0
+=item 0:
 
 All hunks have been assigned.
 
-=item 1
+=item 1:
 
 Only some hunks have been assigned.
 
-=item 2
+=item 2:
 
 No hunks have been assigned.
 
-=item 3
+=item 3:
 
 There was nothing to be assigned.
 
-=item 255
+=item 255:
 
 Unexpected error occurred.
 
