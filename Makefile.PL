@@ -17,6 +17,9 @@ WriteMakefile(
                 url  => 'https://github.com/torbiak/git-autofixup.git',
                 web  => 'https://github.com/torbiak/git-autofixup',
             },
+            bugtracker => {
+                web => 'https://github.com/torbiak/git-autofixup/issues'
+            },
         }})
         : ()
     ),
