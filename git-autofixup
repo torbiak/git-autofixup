@@ -595,7 +595,7 @@ App::Git::Autofixup - create fixup commits for topic branches
 
 =head1 DESCRIPTION
 
-F<git-autofixup> parses hunks of changes in the working directory out of C<git diff> output and uses C<git blame> to assign those hunks to commits in C<E<lt>revisionE<gt>..HEAD>, which will typically represent a topic branch, and then creates fixup commits to be used with C<git rebase --interactive --autosquash>. [See C<git help revisions> for information about git revision specification syntax.] It is assumed that hunks near changes that were previously committed to the topic branch are related.
+F<git-autofixup> parses hunks of changes in the working directory out of C<git diff> output and uses C<git blame> to assign those hunks to commits in C<E<lt>revisionE<gt>..HEAD>, which will typically represent a topic branch, and then creates fixup commits to be used with C<git rebase --interactive --autosquash>. It is assumed that hunks near changes that were previously committed to the topic branch are related.
 
 C<@{upstream}> or C<@{u}> is likely a convenient value to use for C<E<lt>revisionE<gt>> if the current branch has a tracking branch. See C<git help revisions> for other ways to specify revisions.
 
