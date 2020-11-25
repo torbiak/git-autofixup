@@ -77,6 +77,7 @@ sub test_autofixup {
     my $staged = $args->{staged};
     my $log_want = defined($args->{log_want}) ? $args->{log_want}
                  : croak "wanted log output not given";
+    my $staged_want = $args->{staged_want};
     my $unstaged_want = $args->{unstaged_want};
     my $exit_code_want = $args->{exit_code};
     my $autofixup_opts = $args->{autofixup_opts} || [];
@@ -90,6 +91,7 @@ sub test_autofixup {
 
     my $exit_code_got;
     my $log_got;
+    my $staged_got;
     my $unstaged_got;
     my $orig_dir = getcwd();
     my $dir = File::Temp::tempdir(CLEANUP => 1);
@@ -126,6 +128,7 @@ sub test_autofixup {
         run("git --no-pager log --format='%h %s' ${upstream_rev}..");
         $exit_code_got = autofixup(@{$autofixup_opts}, $upstream_rev);
         $log_got = git_log(${pre_fixup_rev});
+        $staged_got = diff('--cached');
         if (defined($unstaged_want)) {
             $unstaged_got = diff('HEAD');
         }
@@ -143,6 +146,16 @@ sub test_autofixup {
         diag("log_got=<<EOF\n${log_got}EOF\nlog_want=<<EOF\n${log_want}EOF\n");
         $failed = 1;
     }
+
+    if (!defined($staged_want) && $staged_got) {
+        diag("staged_got=<<EOF\n${staged_got}EOF\nno staged changes expected\n");
+        $failed = 1;
+    }
+    if (defined($staged_want) && $staged_want ne $staged_got) {
+        diag("staged_got=<<EOF\n${staged_got}EOF\nstaged_want=<<EOF\n${staged_want}EOF\n");
+        $failed = 1;
+    }
+
 
     if (defined($unstaged_want) && $unstaged_want ne $unstaged_got) {
         diag("unstaged_got=<<EOF\n${unstaged_got}EOF\nunstaged_want=<<EOF\n${unstaged_want}EOF\n");
@@ -752,5 +765,14 @@ index ae93045..16f9ec0 100644
 @@ -1 +1 @@
 -c1
 +c2
+EOF
+    , staged_want => <<'EOF'
+diff --git a/b b/b
+index c9c6af7..e6bfff5 100644
+--- a/b
++++ b/b
+@@ -1 +1 @@
+-b1
++b2
 EOF
 });

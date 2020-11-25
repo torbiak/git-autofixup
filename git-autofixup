@@ -553,9 +553,11 @@ sub main {
         return 0;
     }
 
-    # Limit the tempfile's lifetime to the execution of main().
-    local $ENV{GIT_INDEX_FILE};  # Throw away ENV changes between main() calls.
-    my $tempfile = create_temp_index();
+    local $ENV{GIT_INDEX_FILE};  # Throw away changes between main() calls.
+    if (is_index_dirty()) {
+        # Limit the tempfile's lifetime to the execution of main().
+        my $tempfile = create_temp_index();
+    }
 
     for my $sha (@ordered_shas) {
         my $fixup_hunks = $hunks_for->{$sha};
