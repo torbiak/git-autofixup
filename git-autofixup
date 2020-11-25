@@ -366,16 +366,7 @@ sub commit_fixup {
 }
 
 sub is_index_dirty {
-    open(my $fh, '-|', git_cmd(qw(status --porcelain))) or die "git status: $!\n";
-    my $dirty;
-    while (my $line = <$fh>) {
-        if ($line =~ /^[^?! ]/) {
-            $dirty = 1;
-            last;
-        }
-    }
-    close $fh or die "git status: non-zero exit code\n";
-    return $dirty;
+    return system(git_cmd(qw(diff-index --cached HEAD --quiet))) != 0;
 }
 
 sub fixup_hunks_by_sha {
