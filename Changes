@@ -1,3 +1,11 @@
+# 0.003001
+
+- Fix bug where the index would be left out-of-sync with `HEAD` after
+  autofixing unstaged hunks due to a temporary index being used. If you're
+  running v0.003000 and hit this, `git restore --staged` can be used to read
+  the new `HEAD`'s tree into the index. Thanks to Johannes Altmanninger for
+  finding and fixing this.
+
 # 0.003000
 
 The most important change to the interface is that now, if there are any hunks
