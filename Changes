@@ -1,3 +1,7 @@
+# Unreleased
+
+- Speed up `git-blame` by only considering commits since the given revision.
+
 # 0.003001
 
 - Fix bug where the index would be left out-of-sync with `HEAD` after
