@@ -310,15 +310,15 @@ sub rtrim {
 }
 
 sub blame {
-    my ($hunk, $alias_for) = @_;
+    my ($hunk, $alias_for, $grafts_file) = @_;
     if ($hunk->{count} == 0) {
         return {};
     }
     my @cmd = git_cmd(
         'blame', '--porcelain',
         '-L' => "$hunk->{start},+$hunk->{count}",
-        'HEAD', '--',
-        "$hunk->{file}");
+        '-S' => $grafts_file, 'HEAD',
+        '--', "$hunk->{file}");
     my %blame;
     my ($sha, $line_num);
     open(my $fh, '-|', @cmd) or die "git blame: $!\n";
@@ -480,6 +480,21 @@ sub create_temp_index {
     return $tempfile;
 }
 
+# Create a grafts file for `git blame -S` that basically says the upstream
+# commit doesn't have any parents, resulting in blame only searching back as
+# far back as the upstream commit.
+sub create_grafts_file {
+    my $upstream = shift;
+    my $grafts_file = File::Temp->new(
+        TEMPLATE => 'git-autofixup_grafts.XXXXXX',
+        DIR => File::Spec->tmpdir());
+    my $merge_base = qx(git merge-base $upstream HEAD) or return "/dev/null";
+    open(my $fh, '>', $grafts_file) or die "Can't open $grafts_file: $!\n";
+    print $fh $merge_base, "\n";
+    close($fh) or die "Error closing grafts file: $!\n";
+    return $grafts_file;
+}
+
 sub main {
     $VERBOSE = 0;
     my $help;
@@ -537,7 +552,8 @@ sub main {
     my $hunks = diff_hunks($num_context_lines);
     my $summary_for = summary_for_commits($upstream);
     my $alias_for = sha_aliases($summary_for);
-    my %blame_for = map {$_ => blame($_, $alias_for)} @{$hunks};
+    my $grafts_file = create_grafts_file($upstream);
+    my %blame_for = map {$_ => blame($_, $alias_for, $grafts_file)} @{$hunks};
     my $hunks_for = fixup_hunks_by_sha({
         hunks => $hunks,
         blame_for => \%blame_for,
