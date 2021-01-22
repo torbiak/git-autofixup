@@ -13,7 +13,7 @@ if ($OSNAME eq 'MSWin32') {
 } elsif (!has_git()) {
     plan skip_all => 'git version 1.7.4+ required'
 } else {
-    plan tests => 40;
+    plan tests => 41;
 }
 
 require './git-autofixup';
@@ -774,5 +774,24 @@ index c9c6af7..e6bfff5 100644
 @@ -1 +1 @@
 -b1
 +b2
+EOF
+});
+
+test_autofixup({
+    name => "filename with spaces",
+    # strict => 2,
+    topic_commits => [{"filename with spaces" => "a1\n"}],
+    unstaged => {"filename with spaces" => "a2\n"},
+    exit_code => 0,
+    log_want => <<'EOF'
+fixup! commit0
+
+diff --git a/filename with spaces b/filename with spaces
+index da0f8ed..c1827f0 100644
+--- a/filename with spaces	
++++ b/filename with spaces	
+@@ -1 +1 @@
+-a1
++a2
 EOF
 });

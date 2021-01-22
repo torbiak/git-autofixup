@@ -51,9 +51,9 @@ sub parse_hunks {
     my @hunks;
     my $line;
     while ($line = <$fh>) {
-        if ($line =~ /^--- (.*)/) {
+        if ($line =~ /^--- (.*?)\t?$/) {
             $file_a = $1;
-        } elsif ($line =~ /^\+\+\+ (.*)/) {
+        } elsif ($line =~ /^\+\+\+ (.*?)\t?$/) {
             $file_b = $1;
         } elsif ($line =~ /^@@ -(\d+)(?:,(\d+))? \+\d+(?:,\d+)? @@/) {
             my $header = $line;
