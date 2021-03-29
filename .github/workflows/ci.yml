@@ -1,0 +1,13 @@
+on: [push, pull_request]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: sudo apt install perl-doc
+      - name: Make sure README.pod is up to date
+        run: perldoc -u git-autofixup >README.pod && git diff --exit-code
+      - name: Run tests
+        run: perl Makefile.PL && make test
