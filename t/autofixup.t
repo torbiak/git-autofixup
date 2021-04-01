@@ -22,6 +22,7 @@ $ENV{GIT_AUTHOR_NAME} = 'A U Thor';
 $ENV{GIT_AUTHOR_EMAIL} = 'author@example.com';
 $ENV{GIT_COMMITTER_NAME} = 'C O Mitter';
 $ENV{GIT_COMMITTER_EMAIL} = 'committer@example.com';
+$ENV{GIT_CONFIG_NOSYSTEM} = 'true';
 
 
 sub has_git {
@@ -96,6 +97,8 @@ sub test_autofixup {
     my $orig_dir = getcwd();
     my $dir = File::Temp::tempdir(CLEANUP => 1);
     chdir $dir or die "$!";
+    $ENV{HOME} = $dir;
+    $ENV{XDG_CONFIG_HOME} = "$dir/.config";
     eval {
 
         init_repo();
