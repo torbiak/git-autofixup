@@ -7,6 +7,7 @@ use warnings FATAL => 'all';
 use Carp qw(croak);
 use Pod::Usage;
 use Getopt::Long qw(:config bundling);
+use File::Copy;
 use File::Temp;
 use File::Spec ();
 
@@ -469,14 +470,27 @@ sub exit_code {
 # Create a temporary index so we can craft commits with already-staged hunks.
 # Return a File::Temp object so the caller has control over its lifetime.
 sub create_temp_index {
+    my $old_index = shift;
     my $tempfile = File::Temp->new(
         TEMPLATE => 'git-autofixup_index.XXXXXX',
         DIR => File::Spec->tmpdir());
+    # The index ought to be equivalent to HEAD. The fastest way to create it
+    # is to start with the current index, and subtract the changes since HEAD.
+    if (not defined($old_index)) {
+        my $gitdir = qx(git rev-parse --git-dir) or die "git rev-parse: $!\n";
+        chomp $gitdir;
+        $old_index = "$gitdir/index";
+    }
+    copy($old_index, $tempfile->filename()) or die "Can't copy Git index '$old_index' to '$tempfile': $!\n";
+
     $ENV{GIT_INDEX_FILE} = $tempfile->filename();
-    # A blank index makes it look like we're deleting everything, so read
-    # HEAD's tree into it.
-    qx(git read-tree HEAD^{tree});
-    $? == 0 or die "Can't read HEAD's tree into temp index.\n";
+
+    # Remove any staged changes from the new index - we want to turn them into fixup commits.
+    my $index_changes = qx(git diff-index --patch --no-ext-diff --ignore-submodules --cached HEAD);
+    open my $fh, '|-', git_cmd(qw(apply --cached --whitespace=nowarn --reverse -)) or die "git apply: $!\n";
+    print $fh $index_changes;
+    close $fh or die "git apply: non-zero exit code\n";
+
     return $tempfile;
 }
 
@@ -553,10 +567,11 @@ sub main {
         return 0;
     }
 
+    my $old_index = $ENV{GIT_INDEX_FILE};
     local $ENV{GIT_INDEX_FILE};  # Throw away changes between main() calls.
     if (is_index_dirty()) {
         # Limit the tempfile's lifetime to the execution of main().
-        my $tempfile = create_temp_index();
+        my $tempfile = create_temp_index($old_index);
     }
 
     for my $sha (@ordered_shas) {
