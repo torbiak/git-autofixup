@@ -782,7 +782,6 @@ EOF
 
 test_autofixup({
     name => "filename with spaces",
-    # strict => 2,
     topic_commits => [{"filename with spaces" => "a1\n"}],
     unstaged => {"filename with spaces" => "a2\n"},
     exit_code => 0,
