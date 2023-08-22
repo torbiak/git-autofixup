@@ -1,0 +1,45 @@
+#!/bin/bash
+# Release tasks.
+#
+# This evolved out of following the guide at
+# https://www.perl.com/article/how-to-upload-a-script-to-cpan/.
+
+set -euo pipefail
+
+mk_readme() {
+    perldoc -u git-autofixup >README.pod
+}
+
+mk_tarball() {
+    perl Makefile.PL
+    make dist
+}
+
+upload() {
+    local tarball=${1:?No tarball given}; shift
+    cpan-upload -u TORBIAK "$tarball"
+}
+
+get_version() {
+    grep -F 'our $VERSION = ' lib/App/Git/Autofixup.pm git-autofixup
+}
+
+set_version() {
+    local version=${1:?No version given}; shift
+    sed -E -i '/our \$VERSION = [0-9]\.[0-9]+;/c our $VERSION = '"$version"';' \
+        lib/App/Git/Autofixup.pm git-autofixup
+}
+
+release() {
+    local version=${1:?No version given}; shift
+    set_version "$version" &&
+    mk_readme &&
+    prove -l t xt &&
+    git commit -am "Version $version" &&
+    git tag "v$version" &&
+    mk_tarball &&
+    upload "App-Git-Autofixup-${version%%0}.tar.gz"
+}
+
+cd "${BASH_SOURCE%/*}"
+"$@"
