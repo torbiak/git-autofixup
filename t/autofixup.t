@@ -13,7 +13,7 @@ if ($OSNAME eq 'MSWin32') {
 } elsif (!has_git()) {
     plan skip_all => 'git version 1.7.4+ required'
 } else {
-    plan tests => 41;
+    plan tests => 42;
 }
 
 require './git-autofixup';
@@ -792,6 +792,24 @@ diff --git a/filename with spaces b/filename with spaces
 index da0f8ed..c1827f0 100644
 --- a/filename with spaces	
 +++ b/filename with spaces	
+@@ -1 +1 @@
+-a1
++a2
+EOF
+});
+
+test_autofixup({
+    name => "filename with unusual characters",
+    topic_commits => [{"ff\f nak\025 dq\" hack\\ fei飞.txt" => "a1\n"}],
+    unstaged => {"ff\f nak\025 dq\" hack\\ fei飞.txt" => "a2\n"},
+    exit_code => 0,
+    log_want => <<'EOF'
+fixup! commit0
+
+diff --git "a/ff\f nak\025 dq\" hack\\ fei\351\243\236.txt" "b/ff\f nak\025 dq\" hack\\ fei\351\243\236.txt"
+index da0f8ed..c1827f0 100644
+--- "a/ff\f nak\025 dq\" hack\\ fei\351\243\236.txt"	
++++ "b/ff\f nak\025 dq\" hack\\ fei\351\243\236.txt"	
 @@ -1 +1 @@
 -a1
 +a2

@@ -52,16 +52,12 @@ sub parse_hunks {
     my @hunks;
     my $line;
     while ($line = <$fh>) {
-        if ($line =~ /^--- (.*?)\t?$/) {
-            $file_a = $1;
-        } elsif ($line =~ /^\+\+\+ (.*?)\t?$/) {
-            $file_b = $1;
+        if ($line =~ /^--- (.*)/) {
+            $file_a = dequote_diff_filename($1);
+        } elsif ($line =~ /^\+\+\+ (.*)/) {
+            $file_b = dequote_diff_filename($1);
         } elsif ($line =~ /^@@ -(\d+)(?:,(\d+))? \+\d+(?:,\d+)? @@/) {
             my $header = $line;
-
-            for ($file_a, $file_b) {
-                s#^[abiwco]/##;
-            }
 
             next if $file_a ne $file_b; # Ignore creations and deletions.
 
@@ -87,6 +83,36 @@ sub parse_hunks {
         }
     }
     return @hunks;
+}
+
+# Dequote and unescape filenames that appear in diff output.
+#
+# If the filename is otherwise "normal" but contains spaces it's followed by a
+# trailing tab, and if it contains uncommon control characters or non-ASCII
+# characters, then the filename gets surrounded in double-quotes and non-ASCII
+# characters get replaced with octal escape sequences.
+#
+# For details about exactly what gets quoted, see the sq_lookup array in
+# git/quote.c.
+#
+# Also, remove the side-marker prefix, by default `a/` or `b/`.
+sub dequote_diff_filename {
+    $_ = shift;
+
+    s/\t$//m;  # Remove trailing tab.
+
+    if (startswith($_, '"')) {
+        s/^"|"$//gm;  # Remove surrounding quotes.
+        # Replace octal and control character escapes.
+        s/\\((?:\d{3})|(?:[abtnvfr"\\]))/"qq(\\$1)"/eeg;
+    }
+
+    # Remove prefix.
+    # a/b by default, or (i)ndex (w)orktree (c)ommit (o)bject if
+    # diff.mnemonicPrefix is set.
+    s#^[abiwco]/##;
+
+    return $_;
 }
 
 sub git_cmd {
