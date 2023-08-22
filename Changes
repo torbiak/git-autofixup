@@ -1,6 +1,13 @@
-# Unreleased
+# 0.003002
 
-- Speed up `git-blame` by only considering commits since the given revision.
+- Speed up creation of temporary git index by copying the existing one and
+  subtracting recent changes
+- Speed up `git-blame` by only considering commits since the given revision
+- Handle filenames (in git diff output) that contain spaces
+- Suppress Git warning about implicit default branch
+
+Many thanks to Johannes Altmanninger for his continued work; he implemented or
+contributed to all the important changes in this release.
 
 # 0.003001
 

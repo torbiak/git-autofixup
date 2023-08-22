@@ -11,7 +11,7 @@ use File::Copy;
 use File::Temp;
 use File::Spec ();
 
-our $VERSION = 0.003001; # X.YYYZZZ
+our $VERSION = 0.003002;
 
 my $VERBOSE;
 my @GIT_OPTIONS;
