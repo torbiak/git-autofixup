@@ -1,3 +1,4 @@
 *.bak
 MYMETA.*
 App-Git-Autofixup-*.tar.gz
+Makefile
