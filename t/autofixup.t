@@ -178,7 +178,8 @@ sub test_autofixup {
 }
 
 sub init_repo {
-    run('git init --initial-branch=master');
+    local $ENV{GIT_TEST_DEFAULT_INITIAL_BRANCH_NAME} = 'master';
+    run('git init');
     # git-autofixup needs a commit to exclude, since it uses the REVISION..
     # syntax. This is that commit.
     my $filename = 'README';
