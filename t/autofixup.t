@@ -97,8 +97,8 @@ sub test_autofixup {
     my $orig_dir = getcwd();
     my $dir = File::Temp::tempdir(CLEANUP => 1);
     chdir $dir or die "$!";
-    $ENV{HOME} = $dir;
-    $ENV{XDG_CONFIG_HOME} = "$dir/.config";
+    local $ENV{HOME} = $dir;
+    local $ENV{XDG_CONFIG_HOME} = "$dir/.config";
     eval {
 
         init_repo();
