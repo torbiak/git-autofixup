@@ -1,15 +1,16 @@
 #!/usr/bin/perl
-package main;
+package Autofixup;
 use 5.008004;
 use strict;
 use warnings FATAL => 'all';
 
 use Carp qw(croak);
-use Pod::Usage;
-use Getopt::Long qw(:config bundling);
 use File::Copy;
-use File::Temp;
 use File::Spec ();
+use File::Temp;
+use Getopt::Long qw(:config bundling);
+use IPC::Open3;
+use Pod::Usage;
 
 our $VERSION = 0.003002;
 
@@ -20,7 +21,7 @@ my @GIT_OPTIONS;
 my ($CONTEXT, $ADJACENT, $SURROUNDED) = (0..10);
 
 my $usage =<<'END';
-usage: git-autofixup [<options>] <revision>
+usage: git-autofixup [<options>] [<revision>]
 
 -h                 show usage
 --help             show manpage
@@ -119,10 +120,105 @@ sub git_cmd {
     return ('git', @GIT_OPTIONS, @_);
 }
 
+# With a linear git history there'll be a single merge base that's easy to
+# refer to with @{upstream}, but during an interactive rebase we need to get
+# the "current" branch from the rebase metadata.
+#
+# Unusual cases:
+#
+# While there can be multiple merge bases if there have been criss-cross
+# merges, there'll still be a single fork point unless the relevant reflog
+# entries have already been garbage-collected.
+#
+# When multiple upstreams are configured via `branch.<name>.merge` in git's
+# config the most correct approach is probably to find the fork-point for each
+# merge value and return those. But it seems unlikely that someone is doing
+# octopus merges and using git-autofixup, so we're not handling that specially
+# currently.
+sub find_merge_bases {
+    my $upstream = '@{upstream}';
+
+    # If an interactive rebase is in progress, derive the upstream from the
+    # rebase meatadata.
+    my $gitdir = git_dir();
+    if (-e "$gitdir/rebase-merge") {
+         my $branch = slurp("$gitdir/rebase-merge/head-name");
+         chomp $branch;
+         $branch =~ s#^refs/heads/##;
+         $upstream = "$branch\@{upstream}";
+    }
+
+    # `git merge-base` will fail if there's no tracking branch. In that case
+    # redirect stderr and communicate failure by returning an empty list. Also,
+    # with the --fork-point option, no merge bases are returned if the relevant
+    # reflog entries have been GC'd, so fall back to normal merge-bases.
+    my @merge_bases = ();
+    my ($out, $err, $exit_code) = capture(qw(git merge-base --all --fork-point), $upstream, 'HEAD');
+    if ($exit_code == 0) {
+        @merge_bases = map {chomp; $_} split(/\n/, $out);
+    } else {
+        my ($out, $err, $exit_code) = capture(qw(git merge-base --all), $upstream, 'HEAD');
+        if ($exit_code != 0) {
+            die "git merge-base: $err";
+        }
+        @merge_bases = map {chomp; $_} split("\n", $out);
+    }
+
+    return wantarray ? @merge_bases : \@merge_bases;
+}
+
+sub git_dir {
+    my ($out, $err, $exit_code) = capture(qw(git rev-parse --git-dir));
+    if ($exit_code != 0) {
+        warn "git rev-parse --git-dir: $err\n";
+        die "Can't find repo's git dir\n";
+    }
+    chomp $out;
+    return $out;
+}
+
+sub toplevel_dir {
+    my ($out, $err, $exit_code) = capture(qw(git rev-parse --show-toplevel));
+    if ($exit_code != 0) {
+        warn "git rev-parse --show-toplevel: $err\n";
+        die "Can't find repo's toplevel dir\n";
+    }
+    chomp $out;
+    return $out;
+}
+
+# Run the given command, capture stdout and stderr, and return an array of
+# (stdout, stderr, exit_code).
+sub capture {
+    open(my $out_fh, '>', undef) or die "create stdout tempfile: $!";
+    open(my $err_fh, '>', undef) or die "create stderr tempfile: $!";
+    my $pid = open3(my $in_fh, $out_fh, $err_fh, @_);
+    waitpid $pid, 0;
+    if ($? & 127) {
+        my $signal = $? & 127;
+        die "capture: child died with signal $signal; exiting";
+    }
+    my $exit_code = $? >> 8;
+    local $/;  # slurp
+    my $stdout = readline $out_fh;
+    my $stderr = readline $err_fh;
+    my @array = ($stdout, $stderr, $exit_code);
+    return wantarray ? @array : \@array;
+}
+
+sub slurp {
+    my $filename = shift;
+    open my $fh, '<', $filename or die "slurp $filename: $!";
+    local $/;
+    my $content = readline $fh;
+    return $content;
+}
+
 sub summary_for_commits {
-    my $rev = shift;
+    my @upstreams = @_;
     my %commits;
-    for (qx(git log --no-merges --format=%H:%s $rev..)) {
+    my $negative = join(" ", map {"^$_"} @upstreams);
+    for (qx(git log --no-merges --format=%H:%s HEAD $negative)) {
         chomp;
         my ($sha, $msg) = split ':', $_, 2;
         $commits{$sha} = $msg;
@@ -154,6 +250,8 @@ sub sha_aliases {
     return \%aliases;
 }
 
+# Given hunk, blame, and commit data, return the SHA for the commit the hunk
+# should fixup, or undef if an appropriate commit isn't found.
 sub fixup_sha {
     my $args = shift;
     my $hunk = $args->{hunk};
@@ -387,8 +485,12 @@ sub commit_fixup {
             @{$hunk->{lines}},
         );
     }
-    close $fh or die "git apply: non-zero exit code\n";
-    system(git_cmd('commit', "--fixup=$sha")) == 0 or die "git commit: $!\n";
+    close $fh or die "git apply: " . child_error_desc($?) . "\n";
+    my (undef, $err, $exit_code) = capture(git_cmd('commit', "--fixup=$sha"));
+    if ($exit_code != 0) {
+        warn "git commit: $err\n";
+        die "git commit exited with $exit_code\n";
+    }
     return;
 }
 
@@ -503,8 +605,7 @@ sub create_temp_index {
     # The index ought to be equivalent to HEAD. The fastest way to create it
     # is to start with the current index, and subtract the changes since HEAD.
     if (not defined($old_index)) {
-        my $gitdir = qx(git rev-parse --git-dir) or die "git rev-parse: $!\n";
-        chomp $gitdir;
+        my $gitdir = git_dir();
         $old_index = "$gitdir/index";
     }
     copy($old_index, $tempfile->filename()) or die "Can't copy Git index '$old_index' to '$tempfile': $!\n";
@@ -524,15 +625,27 @@ sub create_temp_index {
 # commit doesn't have any parents, resulting in blame only searching back as
 # far back as the upstream commit.
 sub create_grafts_file {
-    my $upstream = shift;
+    my @upstreams = @_;
     my $grafts_file = File::Temp->new(
         TEMPLATE => 'git-autofixup_grafts.XXXXXX',
         DIR => File::Spec->tmpdir());
-    my $merge_base = qx(git merge-base $upstream HEAD) or return "/dev/null";
     open(my $fh, '>', $grafts_file) or die "Can't open $grafts_file: $!\n";
-    print $fh $merge_base, "\n";
+    for (@upstreams) {
+        print $fh $_, "\n";
+    }
     close($fh) or die "Error closing grafts file: $!\n";
     return $grafts_file;
+}
+
+sub rev_parse {
+    my $rev = shift;
+    my ($out, $err, $exit_code) = capture(qw(git rev-parse --verify --end-of-options), $rev);
+    if ($exit_code != 0) {
+        warn "git rev-parse: $err\n";
+        die "Can't resolve given revision\n";
+    }
+    chomp $out;
+    return $out;
 }
 
 sub main {
@@ -568,10 +681,19 @@ sub main {
         pod2usage(-exitval => 0, -verbose => 2);
     }
 
-    @ARGV == 1 or die "No upstream commit given.\n";
-    my $upstream = shift @ARGV;
-    qx(git rev-parse --verify ${upstream}^{commit});
-    $? == 0 or die "Can't resolve given commit.\n";
+    # "upstream" revisions as 40 byte SHA1 hex hashes.
+    my @upstreams = ();
+    if (@ARGV == 1) {
+        my $raw_upstream = shift @ARGV;
+        my $upstream = qx(git rev-parse --verify --end-of-options ${raw_upstream}^{commit})
+            or die "Can't resolve given commit.\n";
+        push @upstreams, $upstream;
+    } else {
+        @upstreams = find_merge_bases();
+        if (!@upstreams) {
+            die "Can't find tracking branch. Please specify a revision.\n";
+        }
+    }
 
     if ($num_context_lines < 0) {
         die "invalid number of context lines: $num_context_lines\n";
@@ -590,9 +712,9 @@ sub main {
     chdir $toplevel or die $!;
 
     my $hunks = diff_hunks($num_context_lines);
-    my $summary_for = summary_for_commits($upstream);
+    my $summary_for = summary_for_commits(@upstreams);
     my $alias_for = sha_aliases($summary_for);
-    my $grafts_file = create_grafts_file($upstream);
+    my $grafts_file = create_grafts_file(@upstreams);
     my %blame_for = map {$_ => blame($_, $alias_for, $grafts_file)} @{$hunks};
     my $hunks_for = fixup_hunks_by_sha({
         hunks => $hunks,
@@ -641,13 +763,11 @@ App::Git::Autofixup - create fixup commits for topic branches
 
 =head1 SYNOPSIS
 
-    git-autofixup [<options>] <revision>
+    git-autofixup [<options>] [<revision>]
 
 =head1 DESCRIPTION
 
-F<git-autofixup> parses hunks of changes in the working directory out of C<git diff> output and uses C<git blame> to assign those hunks to commits in C<E<lt>revisionE<gt>..HEAD>, which will typically represent a topic branch, and then creates fixup commits to be used with C<git rebase --interactive --autosquash>. It is assumed that hunks near changes that were previously committed to the topic branch are related.
-
-C<@{upstream}> or C<@{u}> is likely a convenient value to use for C<E<lt>revisionE<gt>> if the current branch has a tracking branch. See C<git help revisions> for other ways to specify revisions.
+F<git-autofixup> parses hunks of changes in the working directory out of C<git diff> output and uses C<git blame> to assign those hunks to commits in C<E<lt>revisionE<gt>..HEAD>, which will typically represent a topic branch, and then creates fixup commits to be used with C<git rebase --interactive --autosquash>. It is assumed that hunks near changes that were previously committed to the topic branch are related. C<E<lt>revisionE<gt>> defaults to C<git merge-base --fork-point HEAD @{upstream} || git merge-base HEAD @{upstream}>, but this will only work if the current branch has an upstream/tracking branch. See C<git help revisions> for info about how to specify revisions.
 
 If any changes have been staged to the index using C<git add>, then F<git-autofixup> will only consider staged hunks when trying to create fixup commits. A temporary index is used to create any resulting commits.
 

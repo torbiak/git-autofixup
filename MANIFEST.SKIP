@@ -69,3 +69,6 @@
 MANIFEST\.SKIP
 ^xt
 \.sw[pmno]$
+^\.github
+^release$
+^todo$
