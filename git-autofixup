@@ -700,7 +700,7 @@ sub main {
     }
 
     if ($num_context_lines < 0) {
-        die "invalid number of context lines: $num_context_lines\n";
+        die "number of context lines must be zero or greater\n";
     }
 
     if (!grep { $strict == $_ } @STRICTNESS_LEVELS) {
