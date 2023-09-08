@@ -18,7 +18,11 @@ my $VERBOSE;
 my @GIT_OPTIONS;
 
 # Strictness levels.
-my ($CONTEXT, $ADJACENT, $SURROUNDED) = (0..10);
+my @STRICTNESS_LEVELS = (
+    my $CONTEXT = 0,
+    my $ADJACENT = 1,
+    my $SURROUNDED = 2,
+);
 
 my $usage =<<'END';
 usage: git-autofixup [<options>] [<revision>]
@@ -699,7 +703,7 @@ sub main {
         die "invalid number of context lines: $num_context_lines\n";
     }
 
-    if ($strict < 0) {
+    if (!grep { $strict == $_ } @STRICTNESS_LEVELS) {
         die "invalid strictness level: $strict\n";
     } elsif ($strict > 0 && $num_context_lines == 0) {
         die "strict hunk assignment requires context\n";
