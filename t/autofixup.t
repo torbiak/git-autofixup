@@ -373,7 +373,7 @@ Util::test_autofixup(
     name => "single-line change gets autofixed when mnemonic prefixes are enabled",
     topic_commits => [{a => "a1\n"}],
     unstaged => {a => "a2\n"},
-    autofixup_opts => ['-g', '-c', '-g', 'diff.mnemonicPrefix=true'],
+    git_config => {'diff.mnemonicPrefix' => 'true'},
     exit_code => 0,
     log_want => <<'EOF'
 fixup! commit0
@@ -392,7 +392,7 @@ Util::test_autofixup(
     name => "single-line change gets autofixed when diff.external is set",
     topic_commits => [{a => "a1\n"}],
     unstaged => {a => "a2\n"},
-    autofixup_opts => ['-g', '-c', '-g', 'diff.external=vimdiff'],
+    git_config => {'diff.external' => 'vimdiff'},
     exit_code => 0,
     log_want => <<'EOF'
 fixup! commit0

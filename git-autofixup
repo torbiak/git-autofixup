@@ -47,7 +47,8 @@ usage: git-autofixup [<options>] [<revision>]
     must be correlated with the same topic branch commit in order to be
     assigned to it. See the --help for more details.
 -g ARG, --gitopt ARG
-    Specify option for git. Can be used multiple times.
+    Specify option for git. Can be used multiple times. Deprecated in favor of
+    GIT_CONFIG_{COUNT,KEY,VALUE} environment variables; see `git help config`.
 END
 
 # Parse hunks out of `git diff` output. Return an array of hunk hashrefs.
@@ -683,6 +684,13 @@ sub main {
     }
     if ($man) {
         pod2usage(-exitval => 0, -verbose => 2);
+    }
+    if (@GIT_OPTIONS) {
+        warn <<'EOF';
+--gitopt|-g is deprecated and will be removed in a future release. Please use
+the GIT_CONFIG_{COUNT,KEY,VALUE} environment variables instead; see `git help
+config`.
+EOF
     }
 
     # "upstream" revisions as 40 byte SHA1 hex hashes.

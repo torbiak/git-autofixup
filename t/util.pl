@@ -64,6 +64,7 @@ sub test_autofixup_strict {
 # staged_want: expected log output for the staging area
 # unstaged_want: expected diff output for the working tree
 # autofixup_opts: command-line options to pass thru to autofixup
+# git_config: hashref of git config key/value pairs
 #
 # The upstream_commits and topic_commits arguments are heterogeneous lists of
 # sub and hash refs. Hash refs are interpreted as being maps of filenames to
@@ -91,6 +92,13 @@ sub test_autofixup {
     }
     if (exists $args{strict}) {
         croak "strict key given; use test_autofixup_strict instead";
+    }
+
+    local $ENV{GIT_CONFIG_COUNT} = scalar keys %$git_config;
+    my $git_config_env = git_config_env_vars($git_config);
+    local (@ENV{keys %$git_config_env});
+    for my $k (keys %$git_config_env) {
+        $ENV{$k} = $git_config_env->{$k};
     }
 
     eval {
@@ -128,6 +136,29 @@ sub test_autofixup {
         fail($name);
     }
     return;
+}
+
+# Convert a hashref of git config key-value pairs to a hashref of
+# GIT_CONFIG_{KEY,VALUE}_<i> pairs suitable for setting as environment
+# variables.
+#
+# For example:
+#
+#     > git_config_env_vars({'diff.mnemonicPrefix' => 'true'})
+#     {
+#         GIT_CONFIG_KEY_0 => 'diff.mnemonicPrefix',
+#         GIT_CONFIG_VALUE_0 => 'true',
+#     }
+sub git_config_env_vars {
+    my $git_config = shift;
+    my %env = ();
+    my $i = 0;
+    for my $k (sort(keys %$git_config)) {
+        $env{"GIT_CONFIG_KEY_$i"} = $k;
+        $env{"GIT_CONFIG_VALUE_$i"} = $git_config->{$k};
+        $i++;
+    }
+    return \%env;
 }
 
 # Take wanted and actual autofixup exit codes as a hash with keys ('want',
