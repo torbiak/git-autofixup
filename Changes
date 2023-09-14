@@ -1,3 +1,16 @@
+# 0.004000
+
+- Automatically choose an upstream revision if one isn't supplied, based on the
+  upstream/tracking branch. Thanks to Walter Smuts and Johannes Altmanninger
+  for their help in figuring out the details.
+- Support quoted filenames in diff output. git-autofixup now works with
+  filenames containing non-ASCII characters.
+- Improve error messages and handling. For git commands that are expected to
+  fail, their stderr is captured, annotated with the command, and printed, to
+  clarify the cause of errors.
+- Deprecate --gitopt|-g in favor of using the GIT_CONFIG_{COUNT,KEY,VALUE}
+  environment variables.
+
 # 0.003002
 
 - Speed up creation of temporary git index by copying the existing one and
