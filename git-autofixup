@@ -211,6 +211,18 @@ sub capture {
     return wantarray ? @array : \@array;
 }
 
+# Return a description of what $? means.
+sub child_error_desc {
+    my $err = shift;
+    if ($err == -1) {
+        return "failed to execute: $!";
+    } elsif ($err & 127) {
+        return "died with signal " . ($? & 127);
+    } else {
+        return "exited with " . ($? >> 8);
+    }
+}
+
 sub slurp {
     my $filename = shift;
     open my $fh, '<', $filename or die "slurp $filename: $!";
@@ -223,7 +235,9 @@ sub summary_for_commits {
     my @upstreams = @_;
     my %commits;
     my $negative = join(" ", map {"^$_"} @upstreams);
-    for (qx(git log --no-merges --format=%H:%s HEAD $negative)) {
+    my @lines = qx(git log --no-merges --format=%H:%s HEAD $negative);
+    die "git log: " . child_error_desc($?) if $?;
+    for (@lines) {
         chomp;
         my ($sha, $msg) = split ':', $_, 2;
         $commits{$sha} = $msg;
@@ -451,7 +465,7 @@ sub blame {
         '--', "$hunk->{file}");
     my %blame;
     my ($sha, $line_num);
-    open(my $fh, '-|', @cmd) or die "git blame: $!\n";
+    open(my $fh, '-|', @cmd) or die "run git blame: $!\n";
     while (my $line = <$fh>) {
         if ($line =~ /^([0-9a-f]{40}) \d+ (\d+)/) {
              ($sha, $line_num) = ($1, $2);
@@ -463,7 +477,7 @@ sub blame {
             $blame{$line_num} = {sha => $sha, text => substr($line, 1)};
         }
     }
-    close($fh) or die "git blame: non-zero exit code";
+    close($fh) or die "git blame: " . child_error_desc($?) . "\n";
     return \%blame;
 }
 
@@ -473,9 +487,9 @@ sub diff_hunks {
     if (is_index_dirty()) {
         push @cmd, "--cached";
     }
-    open(my $fh, '-|', @cmd) or die $!;
+    open(my $fh, '-|', @cmd) or die "run git diff: $!";
     my @hunks = parse_hunks($fh, keep_lines => 1);
-    close($fh) or die "git diff: non-zero exit code";
+    close($fh) or die "git diff: " . child_error_desc($?) . "\n";
     return wantarray ? @hunks : \@hunks;
 }
 
@@ -619,9 +633,10 @@ sub create_temp_index {
 
     # Remove any staged changes from the new index - we want to turn them into fixup commits.
     my $index_changes = qx(git diff-index --patch --no-ext-diff --ignore-submodules --cached HEAD);
-    open my $fh, '|-', git_cmd(qw(apply --cached --whitespace=nowarn --reverse -)) or die "git apply: $!\n";
+    die "git diff-index: " . child_error_desc($?) if $?;
+    open my $fh, '|-', git_cmd(qw(apply --cached --whitespace=nowarn --reverse -)) or die "run git apply: $!\n";
     print $fh $index_changes;
-    close $fh or die "git apply: non-zero exit code\n";
+    close $fh or die "git apply: " . child_error_desc($?) . "\n";
 
     return $tempfile;
 }
@@ -638,7 +653,7 @@ sub create_grafts_file {
     for (@upstreams) {
         print $fh $_, "\n";
     }
-    close($fh) or die "Error closing grafts file: $!\n";
+    close($fh) or die "close grafts file: $!\n";
     return $grafts_file;
 }
 
@@ -697,8 +712,7 @@ EOF
     my @upstreams = ();
     if (@ARGV == 1) {
         my $raw_upstream = shift @ARGV;
-        my $upstream = qx(git rev-parse --verify --end-of-options ${raw_upstream}^{commit})
-            or die "Can't resolve given commit.\n";
+        my $upstream = rev_parse("${raw_upstream}^{commit}");
         push @upstreams, $upstream;
     } else {
         @upstreams = find_merge_bases();
@@ -718,10 +732,8 @@ EOF
     }
 
 
-    my $toplevel = qx(git rev-parse --show-toplevel);
-    chomp $toplevel;
-    $? == 0 or die "Can't get repo toplevel dir\n";
-    chdir $toplevel or die $!;
+    my $toplevel = toplevel_dir();
+    chdir $toplevel or die "cd to toplevel: $!\n";
 
     my $hunks = diff_hunks($num_context_lines);
     my $summary_for = summary_for_commits(@upstreams);
