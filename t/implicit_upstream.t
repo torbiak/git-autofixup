@@ -8,13 +8,14 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Test::More tests => 4;
+use Test::More;
 
 require './t/util.pl';
 require './t/repo.pl';
 require './git-autofixup';
 
-Util::check_test_deps();
+Util::check_test_deps(4);
+plan tests => 4;
 
 # fast-forward from upstream
 #

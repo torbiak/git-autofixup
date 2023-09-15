@@ -21,7 +21,7 @@ sub check_test_deps {
     }
 }
 
-# Return true is git version 1.7.4+ is available.
+# Return true if git version 1.7.4+ is available.
 sub has_git {
     my $stdout = qx{git --version};
     return if $? != 0;

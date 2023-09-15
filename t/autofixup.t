@@ -2,12 +2,13 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Test::More tests => 42;
+use Test::More;
 
 require './t/util.pl';
 require './git-autofixup';
 
 Util::check_test_deps();
+plan tests => 42;
 
 Util::test_autofixup_strict(
     name => "single-line change gets autofixed",
