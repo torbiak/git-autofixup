@@ -12,7 +12,7 @@ use Getopt::Long qw(:config bundling);
 use IPC::Open3;
 use Pod::Usage;
 
-our $VERSION = 0.004000;
+our $VERSION = 0.004001;
 
 my $VERBOSE;
 my @GIT_OPTIONS;

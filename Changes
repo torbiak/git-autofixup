@@ -1,3 +1,8 @@
+# 0.004001
+
+- Fix test plans so Test::More::plan() doesn't get called twice when git isn't
+  available.
+
 # 0.004000
 
 - Automatically choose an upstream revision if one isn't supplied, based on the
