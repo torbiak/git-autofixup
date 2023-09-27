@@ -7,7 +7,6 @@ use warnings FATAL => 'all';
 use Carp qw(croak);
 use Cwd;
 use English qw(-no_match_vars);
-use File::Temp qw(tempdir);
 use Test::More;
 
 require './t/repo.pl';
