@@ -2,13 +2,14 @@
 use strict;
 use warnings FATAL => 'all';
 
+use English qw(-no_match_vars);
 use Test::More;
 
 require './t/util.pl';
 require './git-autofixup';
 
 Util::check_test_deps();
-plan tests => 42;
+plan tests => 43;
 
 Util::test_autofixup_strict(
     name => "single-line change gets autofixed",
@@ -557,18 +558,39 @@ EOF
 
 Util::test_autofixup(
     name => "filename with unusual characters",
-    topic_commits => [{"ff\f nak\025 dq\" hack\\ fei飞.txt" => "a1\n"}],
-    unstaged => {"ff\f nak\025 dq\" hack\\ fei飞.txt" => "a2\n"},
+    topic_commits => [{"ff\f nak\025 dq\" fei飞.txt" => "a1\n"}],
+    unstaged => {"ff\f nak\025 dq\" fei飞.txt" => "a2\n"},
     exit_code => 0,
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git "a/ff\f nak\025 dq\" hack\\ fei\351\243\236.txt" "b/ff\f nak\025 dq\" hack\\ fei\351\243\236.txt"
+diff --git "a/ff\f nak\025 dq\" fei\351\243\236.txt" "b/ff\f nak\025 dq\" fei\351\243\236.txt"
 index da0f8ed..c1827f0 100644
---- "a/ff\f nak\025 dq\" hack\\ fei\351\243\236.txt"	
-+++ "b/ff\f nak\025 dq\" hack\\ fei\351\243\236.txt"	
+--- "a/ff\f nak\025 dq\" fei\351\243\236.txt"	
++++ "b/ff\f nak\025 dq\" fei\351\243\236.txt"	
 @@ -1 +1 @@
 -a1
 +a2
 EOF
 );
+
+SKIP: {
+    skip "can't put backslashes in filenames on windows" if $OSNAME eq 'cygwin';
+    Util::test_autofixup(
+        name => "filename with backslash",
+        topic_commits => [{"hack\\.txt" => "a1\n"}],
+        unstaged => {"hack\\.txt" => "a2\n"},
+        exit_code => 0,
+        log_want => <<'EOF'
+fixup! commit0
+
+diff --git "a/hack\\.txt" "b/hack\\.txt"
+index da0f8ed..c1827f0 100644
+--- "a/hack\\.txt"
++++ "b/hack\\.txt"
+@@ -1 +1 @@
+-a1
++a2
+EOF
+    );
+}
