@@ -14,9 +14,11 @@ require './git-autofixup';
 
 sub check_test_deps {
     if ($OSNAME eq 'MSWin32') {
-        plan skip_all => 'Run from Cygwin or Git Bash on Windows'
+        plan skip_all => "Windows isn't supported, except with msys or Cygwin";
     } elsif (!has_git()) {
-        plan skip_all => 'git version 1.7.4+ required'
+        plan skip_all => 'git version 1.7.4+ required';
+    } elsif ($OSNAME eq 'cygwin' && is_git_for_windows()) {
+        plan skip_all => "Can't use Git for Windows with a perl for Cygwin";
     }
 }
 
@@ -29,6 +31,11 @@ sub has_git {
     $z = defined $z ? $z : 0;
     my $cmp = $x <=> 1 || $y <=> 7 || $z <=> 4;
     return $cmp >= 0;
+}
+
+sub is_git_for_windows {
+    my $version = qx{git --version};
+    return $version =~ /\.(?:windows|msysgit)\./i;
 }
 
 # Run test_autofixup() with each of the given strictness levels.
