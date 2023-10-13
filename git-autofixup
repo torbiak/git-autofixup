@@ -627,6 +627,7 @@ sub create_temp_index {
         my $gitdir = git_dir();
         $old_index = "$gitdir/index";
     }
+    close $tempfile or die "close temp index: $!";
     copy($old_index, $tempfile->filename()) or die "Can't copy Git index '$old_index' to '$tempfile': $!\n";
 
     $ENV{GIT_INDEX_FILE} = $tempfile->filename();
