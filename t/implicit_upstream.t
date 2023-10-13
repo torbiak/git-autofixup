@@ -138,6 +138,13 @@ EOF
             $ok &&= Util::repo_state_ok($repo, $topic, $wants);
         }
 
+        # Help investigate an upstream mismatch that only happens for one CPAN
+        # Tester env.
+        if (!$ok) {
+            system('git version >&2');
+            system('PAGER= git config -l >&2');
+        }
+
         ok($ok, $name);
     };
     if ($@) {
