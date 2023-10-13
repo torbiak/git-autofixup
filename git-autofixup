@@ -901,18 +901,17 @@ Unexpected error occurred.
 
 =head1 INSTALLATION
 
-If cpan is available, run C<cpan -i App::Git::Autofixup>. Otherwise, copy F<git-autofixup> to a directory in C<PATH> and ensure it has execute permissions. It can then be invoked as either C<git autofixup> or C<git-autofixup>, since git searches C<PATH> for appropriately named binaries.
+If cpan is available, run C<cpan -i App::Git::Autofixup>. Otherwise, copy F<git-autofixup> to a directory in C<PATH> and ensure it has execute permissions. It can then be invoked as either C<git-autofixup> or C<git autofixup>, since git searches C<PATH> for appropriately named binaries.
 
 Git is distributed with Perl 5 for platforms not expected to already have it installed, but installing modules with cpan requires other tools that might not be available, such as make. This script has no dependencies outside of the standard library, so it is hoped that it works on any platform that Git does without much trouble.
 
 Requires a git supporting C<commit --fixup>: 1.7.4 or later.
 
-
 =head1 BUGS/LIMITATIONS
 
-If a topic branch adds some lines in one commit and subsequently removes some of them in another, a hunk in the working directory that re-adds those lines will be assigned to fixup the first commit, and during rebasing they'll be removed again by the later commit.
+git-autofixup works on Windows, but be careful not to use a perl compiled for cygwin with a git compiled for msys, such as L<Git for Windows|https://gitforwindows.org/>. It can be used from Git for Windows' "Git Bash" or "Git CMD", or you can install git using Cygwin's package manager and use git-autofixup from Cygwin. Note that while every release gets tested on Cygwin via the CPAN Testers network, testing with Git for Windows requires more effort since it's a constrained environment; thus it doesn't get tested as often. If you run into any issues, please report them on L<GitHub|https://github.com/torbiak/git-autofixup/issues>.
 
-Not tested in F<cmd.exe> on Windows. Run it from Git Bash, Cygwin, or a similar Unix emulation environment.
+If a topic branch adds some lines in one commit and subsequently removes some of them in another, a hunk in the working directory that re-adds those lines will be assigned to fixup the first commit, and during rebasing they'll be removed again by the later commit.
 
 =head1 ACKNOWLEDGEMENTS
 
