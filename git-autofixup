@@ -216,9 +216,9 @@ sub child_error_desc {
     if ($err == -1) {
         return "failed to execute: $!";
     } elsif ($err & 127) {
-        return "died with signal " . ($? & 127);
+        return "died with signal " . ($err & 127);
     } else {
-        return "exited with " . ($? >> 8);
+        return "exited with " . ($err >> 8);
     }
 }
 
