@@ -150,4 +150,20 @@ sub switch_to_downstream_branch {
     Util::run(qw(git checkout -q -b), $branch, '--track', $tracking_branch);
 }
 
+sub set_upstream {
+    my ($self, $topic_branch, $upstream) = @_;
+    my @cmd = (qw(git branch --set-upstream-to), $upstream);
+    print '# ', join(' ', @cmd), "\n";
+    system(@cmd);
+    if ($? >> 8 == 129) {
+        # If git detects a bad option it exits with 129. For old versions of
+        # git that don't have --set-upstream-to, fall back to --set-upstream,
+        # which was removed in 2017.
+        Util::run(qw(git branch --set-upstream), $topic_branch, $upstream);
+    } elsif ($? != 0) {
+        croak "`git branch --set-upstream-to` " . Util::child_error_desc($?);
+    }
+    return;
+}
+
 1;

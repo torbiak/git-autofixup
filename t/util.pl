@@ -256,7 +256,19 @@ sub repo_state_ok {
 # diagnostic.
 sub run {
     print '# ', join(' ', @_), "\n";
-    system(@_) == 0 or croak "$!";
+    system(@_) == 0 or croak "command " . child_error_desc($?);
+}
+
+# Return a description of what $? means.
+sub child_error_desc {
+    my $err = shift;
+    if ($err == -1) {
+        return "failed to execute: $!";
+    } elsif ($err & 127) {
+        return "died with signal " . ($err & 127);
+    } else {
+        return "exited with " . ($err >> 8);
+    }
 }
 
 sub write_file {

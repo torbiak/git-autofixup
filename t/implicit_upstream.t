@@ -198,7 +198,7 @@ EOF
 
         # topic
         Util::run(qw(git checkout -q -b topic), $fork_point);
-        Util::run(qw(git branch --set-upstream-to master));
+        $repo->set_upstream('topic', 'master');
         $repo->create_commits({a => "a1.1\na2\na3\n"});
 
         $repo->write_change({a => "a1.1\na2.1\na3\n"});
@@ -293,7 +293,7 @@ EOF
 
         # C2
         Util::run(qw(git checkout -q -b B master));
-        Util::run(qw(git branch --set-upstream-to A));
+        $repo->set_upstream('B', 'A');
         $repo->create_commits({b => "b1\nb2\nb3\n"});
         my $c2 = $repo->current_commit_sha();
 
