@@ -5,13 +5,13 @@ use warnings FATAL => 'all';
 use English qw(-no_match_vars);
 use Test::More;
 
+require './t/test.pl';
 require './t/util.pl';
-require './git-autofixup';
 
 Util::check_test_deps();
 plan tests => 43;
 
-Util::test_autofixup_strict(
+Test::autofixup_strict(
     name => "single-line change gets autofixed",
     strict => [0..2],
     topic_commits => [{a => "a1\n"}],
@@ -30,7 +30,7 @@ index da0f8ed..c1827f0 100644
 EOF
 );
 
-Util::test_autofixup_strict(
+Test::autofixup_strict(
     name => "adjacent change gets autofixed",
     strict => [0..1],
     upstream_commits => [{a => "a3\n"}],
@@ -51,7 +51,7 @@ index 76642d4..2cdcdb0 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "adjacent change doesn't get autofixed if strict=2",
     upstream_commits => [{a => "a3\n"}],
     topic_commits => [{a => "a1\na3\n"}],
@@ -61,7 +61,7 @@ Util::test_autofixup(
     exit_code => 2,
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => 'fixups are created for additions surrounded by topic commit lines when strict=2',
     topic_commits => [{a => "a1\na3\n", b => "b1\n", c => "c2\n"}],
     unstaged => {a => "a1\na2\na3\n", b => "b1\nb2\n", c => "c1\nc2\n"},
@@ -95,7 +95,7 @@ index 16f9ec0..d0aaf97 100644
 EOF
 );
 
-Util::test_autofixup_strict(
+Test::autofixup_strict(
     name => "removed file doesn't get autofixed",
     strict => [0..2],
     topic_commits => [sub { Util::write_file(a => "a1\n"); }],
@@ -104,7 +104,7 @@ Util::test_autofixup_strict(
     log_want => '',
 );
 
-Util::test_autofixup_strict(
+Test::autofixup_strict(
     name => "re-added file doesn't get autofixed",
     strict => [0..2],
     topic_commits => [
@@ -116,7 +116,7 @@ Util::test_autofixup_strict(
     log_want => '',
 );
 
-Util::test_autofixup_strict(
+Test::autofixup_strict(
     name => "re-added line gets autofixed into the commit blamed for the adjacent context",
     # During rebase the line will just get removed again by the next commit.
     # --strict can be used to avoid creating a fixup in this case, where the
@@ -145,7 +145,7 @@ index da0f8ed..0016606 100644
 EOF
 );
 
-Util::test_autofixup_strict(
+Test::autofixup_strict(
     name => "removed lines get autofixed",
     strict => [0..2],
     topic_commits => [{a => "a1\n", b => "b1\nb2\n"}],
@@ -170,7 +170,7 @@ index 9b89cd5..e6bfff5 100644
 EOF
 );
 
-Util::test_autofixup_strict(
+Test::autofixup_strict(
     name => 'no fixups are created for upstream commits',
     strict => [0..2],
     upstream_commits => [{a => "a1\n"}],
@@ -179,7 +179,7 @@ Util::test_autofixup_strict(
     log_want => '',
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => 'fixups are created for hunks changing lines blamed by upstream if strict=0',
     # This depends on the number of context lines kept when creating diffs. git
     # keeps 3 by default.
@@ -203,7 +203,7 @@ index 125d560..cc1aa32 100644
 +a3b
 EOF
 );
-Util::test_autofixup_strict(
+Test::autofixup_strict(
     name => 'no fixups are created for hunks changing lines blamed by upstream if strict > 0',
     # This depends on the number of context lines kept when creating diffs. git
     # keeps 3 by default.
@@ -215,7 +215,7 @@ Util::test_autofixup_strict(
     log_want => '',
 );
 
-Util::test_autofixup_strict(
+Test::autofixup_strict(
     name => "hunks blamed on a fixup! commit are assigned to that fixup's target",
     strict => [0..2],
     topic_commits => [
@@ -240,7 +240,7 @@ index c1827f0..b792f74 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "removed line gets autofixed when context=0",
     topic_commits => [{a => "a1\na2\n"}],
     unstaged => {a => "a1\n"},
@@ -259,7 +259,7 @@ index 0016606..da0f8ed 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "added line is ignored when context=0",
     topic_commits => [{a => "a1\n"}],
     unstaged => {a => "a1\na2\n"},
@@ -268,7 +268,7 @@ Util::test_autofixup(
     log_want => '',
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "ADJACENCY assignment is used as a fallback for multiple context targets",
     topic_commits => [
         {a => "a1\n"},
@@ -290,7 +290,7 @@ index 0016606..a0ef52c 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "Works when run in a subdir of the repo root",
     topic_commits => [
         sub {
@@ -314,7 +314,7 @@ index da0f8ed..0016606 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "file without newline at EOF gets autofixed",
     topic_commits => [{a => "a1\na2"}],
     unstaged => {'a' => "a1\na2\n"},
@@ -334,7 +334,7 @@ index c928c51..0016606 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "multiple hunks in the same file get autofixed",
     topic_commits => [
         {a => "a1.0\na2\na3\na4\na5\na6\na7\na8\na9.0\n"},
@@ -371,7 +371,7 @@ index 50de7e8..d9f44da 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "single-line change gets autofixed when mnemonic prefixes are enabled",
     topic_commits => [{a => "a1\n"}],
     unstaged => {a => "a2\n"},
@@ -390,7 +390,7 @@ index da0f8ed..c1827f0 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "single-line change gets autofixed when diff.external is set",
     topic_commits => [{a => "a1\n"}],
     unstaged => {a => "a2\n"},
@@ -409,7 +409,7 @@ index da0f8ed..c1827f0 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => 'exit code is 1 when some hunks are assigned',
     upstream_commits => [{a => "a1\n"}],
     topic_commits => [{b => "b1\n"}],
@@ -428,7 +428,7 @@ index c9c6af7..e6bfff5 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "multiple hunks to the same commit get autofixed",
     topic_commits => [
         {a => "a1.0\na2\na3\na4\na5\na6\na7\na8\na9.0\n"},
@@ -465,7 +465,7 @@ index 5d11004..0054137 100644
 +a9.1
 });
 
-Util::test_autofixup(
+Test::autofixup(
     name => "only staged hunks get autofixed",
     topic_commits => [{a => "a1\n", b => "b1\n"}],
     staged => {a => "a2\n"},
@@ -493,7 +493,7 @@ index c9c6af7..e6bfff5 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "staged hunks that aren't autofixed remain in index",
     upstream_commits => [{b => "b1\n"}],
     topic_commits => [{a => "a1\n", , c => "c1\n"}],
@@ -538,7 +538,7 @@ index c9c6af7..e6bfff5 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "filename with spaces",
     topic_commits => [{"filename with spaces" => "a1\n"}],
     unstaged => {"filename with spaces" => "a2\n"},
@@ -556,7 +556,7 @@ index da0f8ed..c1827f0 100644
 EOF
 );
 
-Util::test_autofixup(
+Test::autofixup(
     name => "filename with unusual characters",
     topic_commits => [{"ff\f nak\025 dq\" fei飞.txt" => "a1\n"}],
     unstaged => {"ff\f nak\025 dq\" fei飞.txt" => "a2\n"},
@@ -576,7 +576,7 @@ EOF
 
 SKIP: {
     skip "can't put backslashes in filenames on windows" if $OSNAME eq 'cygwin';
-    Util::test_autofixup(
+    Test::autofixup(
         name => "filename with backslash",
         topic_commits => [{"hack\\.txt" => "a1\n"}],
         unstaged => {"hack\\.txt" => "a2\n"},
