@@ -10,7 +10,6 @@ use File::Spec ();
 use File::Temp;
 use Getopt::Long qw(:config bundling);
 use IPC::Open3;
-use Pod::Usage;
 
 our $VERSION = 0.004001;
 
@@ -699,7 +698,14 @@ sub main {
         return 0;
     }
     if ($man) {
-        pod2usage(-exitval => 0, -verbose => 2);
+        eval {
+            require Pod::Usage;
+            pod2usage(-exitval => 0, -verbose => 2);
+        };
+        die <<'EOF';
+Pod::Usage unavailable for formatting the manual. The manual can be found at
+the end of the git-autofixup script.
+EOF
     }
     if (@GIT_OPTIONS) {
         warn <<'EOF';
