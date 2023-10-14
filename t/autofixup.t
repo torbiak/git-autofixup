@@ -575,7 +575,9 @@ EOF
 );
 
 SKIP: {
-    skip "can't put backslashes in filenames on windows" if $OSNAME eq 'cygwin';
+    if ($OSNAME eq 'cygwin' || $OSNAME eq 'msys') {
+        skip "can't put backslashes in filenames on windows", 1;
+    }
     Test::autofixup(
         name => "filename with backslash",
         topic_commits => [{"hack\\.txt" => "a1\n"}],
