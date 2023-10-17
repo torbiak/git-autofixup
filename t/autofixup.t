@@ -556,12 +556,36 @@ index da0f8ed..c1827f0 100644
 EOF
 );
 
-Test::autofixup(
-    name => "filename with unusual characters",
-    topic_commits => [{"ff\f nak\025 dq\" fei飞.txt" => "a1\n"}],
-    unstaged => {"ff\f nak\025 dq\" fei飞.txt" => "a2\n"},
-    exit_code => 0,
-    log_want => <<'EOF'
+{
+    my $log_want;
+    if ($OSNAME eq 'msys') {
+        # MSYS is based on Cygwin, and Cygwin transparently munges filenames
+        # containing characters that aren't allowed in Windows filenames[0],
+        # encoding them in the Private Use space of Unicode by adding 0xf000 to
+        # them. Cygwin also transparently converts between the Windows-native
+        # UTF-16 encoding of filenames into the UTF-8 that'd be expected on
+        # unix. It seems MSYS is doing something a bit different from Cygwin
+        # and Git for Windows is seeing the munged filename, resulting in three
+        # octal escapes for special characters that are represented as a single
+        # escape on other systems. Apparently git can still use this munged
+        # filename to identify the file when the filename is fed back to git in
+        # a patch, and surprisingly(?), perl is also able to access the file
+        # via the filesystem with the munged name, after "dequoting" it.
+        #
+        # [0]: https://www.cygwin.com/cygwin-ug-net/using-specialnames.html
+        $log_want = <<'EOF';
+fixup! commit0
+
+diff --git "a/ff\357\200\214 nak\357\200\225 dq\357\200\242 fei\351\243\236.txt" "b/ff\357\200\214 nak\357\200\225 dq\357\200\242 fei\351\243\236.txt"
+index da0f8ed..c1827f0 100644
+--- "a/ff\357\200\214 nak\357\200\225 dq\357\200\242 fei\351\243\236.txt"	
++++ "b/ff\357\200\214 nak\357\200\225 dq\357\200\242 fei\351\243\236.txt"	
+@@ -1 +1 @@
+-a1
++a2
+EOF
+    } else {
+        $log_want = <<'EOF';
 fixup! commit0
 
 diff --git "a/ff\f nak\025 dq\" fei\351\243\236.txt" "b/ff\f nak\025 dq\" fei\351\243\236.txt"
@@ -572,7 +596,16 @@ index da0f8ed..c1827f0 100644
 -a1
 +a2
 EOF
-);
+    }
+
+    Test::autofixup(
+        name => "filename with unusual characters",
+        topic_commits => [{"ff\f nak\025 dq\" fei飞.txt" => "a1\n"}],
+        unstaged => {"ff\f nak\025 dq\" fei飞.txt" => "a2\n"},
+        exit_code => 0,
+        log_want => $log_want,
+    );
+}
 
 SKIP: {
     if ($OSNAME eq 'cygwin' || $OSNAME eq 'msys') {
