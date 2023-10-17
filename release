@@ -32,9 +32,17 @@ set_version() {
 
 release() {
     local version=${1:?No version given}; shift
+
     set_version "$version" &&
     mk_readme &&
-    prove -l t xt &&
+    prove -l t xt ||
+    return 1
+
+    if ! grep -E "^# $version" Changes; then
+        echo "Section for $version not found in Changes" >&2
+        return 1
+    fi
+
     git commit -am "Version $version" &&
     git tag "v$version" &&
     mk_tarball &&
