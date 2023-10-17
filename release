@@ -41,5 +41,17 @@ release() {
     upload "App-Git-Autofixup-${version%%000}.tar.gz"
 }
 
+# This is a simplistic script to help test Git for Windows on msys, since
+# prove(1perl) doesn't ship with it.
+test_msys() {
+    exit_code=0
+    for f in xt/*.t t/*.t; do
+        logfile=${f%.t}.log
+        perl -Ilib "$f" &>"$logfile" || true
+        grep -E "^not ok" "$logfile" && exit_code=1 || true
+    done
+    return "$exit_code"
+}
+
 cd "${BASH_SOURCE%/*}"
 "$@"
