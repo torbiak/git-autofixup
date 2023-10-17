@@ -1,3 +1,20 @@
+# 0.004002
+
+Fix minor issues so git-autofixup works with Git for Windows:
+
+- close index temp file so git can write to it. (Windows has different file
+  locking behaviour than *nix.)
+- load Pod::Usage at runtime since Git for Windows doesn't include it and has
+  special handling for `git <cmd> --help` such that it wouldn't get used anyway
+  unless git-autofixup was invoked directly.
+
+Fix some test failures:
+
+- skip tests when perl is for Cygwin but git is for MSYS
+- skip testing backslashes on Windows (Cygwin|MSYS)
+- fallback to --set-upstream for old git versions where --set-upstream-to isn't
+  available
+
 # 0.004001
 
 - Fix test plans so Test::More::plan() doesn't get called twice when git isn't
