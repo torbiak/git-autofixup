@@ -6,6 +6,8 @@ Makefile.PL
 MANIFEST			This list of files
 README.pod
 t/autofixup.t
+t/capture.t
 t/implicit_upstream.t
 t/repo.pl
+t/test.pl
 t/util.pl

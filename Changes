@@ -1,3 +1,7 @@
+# 0.004003
+
+Add missing files to package manifest.
+
 # 0.004002
 
 Fix minor issues so git-autofixup works with Git for Windows:
