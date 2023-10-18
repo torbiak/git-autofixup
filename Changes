@@ -1,3 +1,7 @@
+# upcoming
+
+- Skip capture() tests on Windows.
+
 # 0.004003
 
 Add missing files to package manifest.

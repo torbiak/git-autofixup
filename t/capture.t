@@ -3,9 +3,15 @@
 use strict;
 use warnings FATAL => 'all';
 
-use Test::More tests => 3;
+use English qw(-no_match_vars);
+use Test::More;
 
 require './git-autofixup';
+
+if ($OSNAME eq 'MSWin32') {
+    plan skip_all => "Windows isn't supported, except with msys or Cygwin";
+}
+plan tests => 3;
 
 sub test_capture {
     my %args = @_;
