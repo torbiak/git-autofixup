@@ -11,8 +11,9 @@ mk_readme() {
 }
 
 mk_tarball() {
-    perl Makefile.PL
-    make dist
+    perl Makefile.PL &&
+    make dist ||
+    return 1
 }
 
 upload() {
@@ -35,7 +36,8 @@ release() {
 
     set_version "$version" &&
     mk_readme &&
-    prove -l t xt ||
+    prove -l t xt &&
+    make manifest ||
     return 1
 
     if ! grep -E "^# $version" Changes; then
