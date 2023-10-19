@@ -152,9 +152,9 @@ sub switch_to_downstream_branch {
 
 sub set_upstream {
     my ($self, $topic_branch, $upstream) = @_;
-    my @cmd = (qw(git branch --set-upstream-to), $upstream);
-    print '# ', join(' ', @cmd), "\n";
-    system(@cmd);
+    my $cmd = "git branch --set-upstream-to $upstream >/dev/null 2>&1";
+    print "# $cmd\n";
+    system($cmd);
     if ($? >> 8 == 129) {
         # If git detects a bad option it exits with 129. For old versions of
         # git that don't have --set-upstream-to, fall back to --set-upstream,
