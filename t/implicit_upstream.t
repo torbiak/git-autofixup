@@ -131,20 +131,11 @@ EOF
 
         my $upstreams = Autofixup::find_merge_bases();
         my $ok = Util::upstreams_ok(want => [$upstream], got => $upstreams);
-
         if ($ok) {
             my $exit_code = $repo->autofixup();
             $ok &&= Util::exit_code_ok(want => 0, got => $exit_code);
             $ok &&= Util::repo_state_ok($repo, $topic, $wants);
         }
-
-        # Help investigate an upstream mismatch that only happens for one CPAN
-        # Tester env.
-        if (!$ok) {
-            system('git version >&2');
-            system('PAGER= git config -l >&2');
-        }
-
         ok($ok, $name);
     };
     if ($@) {
@@ -218,6 +209,13 @@ EOF
             my $exit_code = $repo->autofixup();
             $ok &&= Util::exit_code_ok(want => 0, got => $exit_code);
             $ok &&= Util::repo_state_ok($repo, $topic, $wants);
+        }
+
+        # Help investigate an upstream mismatch that only happens for one CPAN
+        # Tester env.
+        if (!$ok) {
+            system('git version >&2');
+            system('PAGER= git config -l >&2');
         }
 
         ok($ok, $name);
