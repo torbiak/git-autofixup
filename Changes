@@ -1,6 +1,8 @@
-# upcoming
+# 0.004004
 
 - Skip capture() tests on Windows.
+- Skip fork-point test on older git versions where merge-base doesn't have
+  fork-point mode
 
 # 0.004003
 
