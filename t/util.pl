@@ -14,21 +14,29 @@ require './git-autofixup';
 sub check_test_deps {
     if ($OSNAME eq 'MSWin32') {
         plan skip_all => "Windows isn't supported, except with msys or Cygwin";
-    } elsif (!has_git()) {
+    } elsif (!git_version_gte('1.7.4')) {
         plan skip_all => 'git version 1.7.4+ required';
     } elsif ($OSNAME eq 'cygwin' && is_git_for_windows()) {
         plan skip_all => "Can't use Git for Windows with a perl for Cygwin";
     }
 }
 
-# Return true if git version 1.7.4+ is available.
-sub has_git {
+# Return true if at least the given version of git, in X.Y.Z format, is
+# available.
+sub git_version_gte {
+    my $want = shift;
+    my @wants = split /\./, $want;
+    if (@wants != 3) {
+        die "unexpected version format: $want\n";
+    }
+    my ($want_x, $want_y, $want_z) = @wants;
+
     my $stdout = qx{git --version};
     return if $? != 0;
     my ($x, $y, $z) = $stdout =~ /(\d+)\.(\d+)(?:\.(\d+))?/;
     defined $x or die "unexpected output from git: $stdout";
     $z = defined $z ? $z : 0;
-    my $cmp = $x <=> 1 || $y <=> 7 || $z <=> 4;
+    my $cmp = $x <=> $want_x || $y <=> $want_y || $z <=> $want_z;
     return $cmp >= 0;
 }
 
