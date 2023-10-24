@@ -77,7 +77,7 @@ Set how strict F<git-autofixup> is about assigning hunks to fixup commits. Defau
 
 =item -g ARG, --gitopt ARG
 
-Specify option for git. Can be used multiple times. Useful for testing, to override config options that break git-autofixup, or to override global diff options to tweak what git-autofixup considers a hunk.
+Specify option for git. Can be used multiple times. Useful for testing, to override config options that break git-autofixup, or to override global diff options to tweak what git-autofixup considers a hunk. Deprecated in favor of C<GIT_CONFIG_{COUNT,KEY,VALUE}> environment variables; see C<git help config>.
 
 Note ARG won't be wordsplit, so to give multiple arguments, such as for setting a config option like C<-c diff.algorithm>, this option must be used multiple times: C<-g -c -g diff.algorithm=patience>.
 
