@@ -700,12 +700,14 @@ sub main {
     if ($man) {
         eval {
             require Pod::Usage;
-            pod2usage(-exitval => 0, -verbose => 2);
         };
-        die <<'EOF';
+        if ($@) {
+            die <<'EOF';
 Pod::Usage unavailable for formatting the manual. The manual can be found at
 the end of the git-autofixup script.
 EOF
+        }
+        Pod::Usage::pod2usage(-exitval => 0, -verbose => 2);
     }
     if (@GIT_OPTIONS) {
         warn <<'EOF';
