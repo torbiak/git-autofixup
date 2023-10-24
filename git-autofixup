@@ -11,7 +11,7 @@ use File::Temp;
 use Getopt::Long qw(:config bundling);
 use IPC::Open3;
 
-our $VERSION = 0.004004;
+our $VERSION = 0.004005;
 
 my $VERBOSE;
 my @GIT_OPTIONS;

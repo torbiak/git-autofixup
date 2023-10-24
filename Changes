@@ -1,3 +1,7 @@
+# 0.004005
+
+- Fix --help: pod2usage() wasn't being called correctly
+
 # 0.004004
 
 - Skip capture() tests on Windows.
