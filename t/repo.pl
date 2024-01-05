@@ -1,5 +1,8 @@
 package Repo;
 
+use strict;
+use warnings FATAL => 'all';
+
 use Carp qw(croak);
 
 require './t/util.pl';
@@ -25,7 +28,7 @@ sub _init_env {
     my $self = shift;
 
     my $orig_dir = Cwd::getcwd();
-    my $dir = File::Temp::tempdir(CLEANUP => self->{cleanup});
+    my $dir = File::Temp::tempdir(CLEANUP => $self->{cleanup});
     chdir $dir or die "$!";
 
     my %env = (
@@ -75,8 +78,12 @@ sub DESTROY {
     chdir $self->{orig_dir} or die "change to orig working dir: $!";
 
     for my $key (keys %{$self->{orig_env}}) {
-        my $val = $self->{orig_env}{key};
-        $ENV{$key} = $val;
+        my $val = $self->{orig_env}{$key};
+        if (defined($val)) {
+            $ENV{$key} = $val;
+        } else {
+            delete $ENV{$key};
+        }
     }
 }
 
