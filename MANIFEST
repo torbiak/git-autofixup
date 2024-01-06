@@ -3,7 +3,8 @@ git-autofixup
 lib/App/Git/Autofixup.pm
 LICENSE
 Makefile.PL
-MANIFEST			This list of files
+MANIFEST
+META.yml
 README.pod
 t/autofixup.t
 t/capture.t

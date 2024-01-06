@@ -1,5 +1,6 @@
 *.bak
 MYMETA.*
+META.yml
 App-Git-Autofixup-*.tar.gz
 Makefile
 /todo
