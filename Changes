@@ -1,3 +1,10 @@
+# 0.004006
+
+- Add core perl modules as dependencies, mostly so App::Git::Autofixup is
+  easier to install via cpan when Test::More isn't installed. Perl
+  installations don't always include all the core modules.
+- Fix tempdir cleanup in tests
+
 # 0.004005
 
 - Fix --help: pod2usage() wasn't being called correctly
