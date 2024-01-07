@@ -2,7 +2,7 @@
 package Autofixup;
 use 5.008004;
 use strict;
-use warnings FATAL => 'all';
+use warnings;
 
 use Carp qw(croak);
 use File::Copy;
