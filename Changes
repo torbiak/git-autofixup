@@ -1,3 +1,9 @@
+# unreleased
+
+- Use the `--no-prefix` option for calls to `git diff` so that git-autofixup works regardless the configured values of the relatively new diff.srcPrefix and diff.dstPrefix variables, added in Git 2.45.0, as well as the older diff.noPrefix and diff.mnemonicPrefix.
+- Stop using `FATAL => 'all'` with `use warnings`. While it can be useful to fatalize warnings during development and in tests, we don't want git-autofixup to refuse to run over a warning.
+- Check that test files `use strict` and `use warnings`.
+
 # 0.004006
 
 - Add core perl modules as dependencies, mostly so App::Git::Autofixup is

@@ -9,7 +9,7 @@ require './t/test.pl';
 require './t/util.pl';
 
 Util::check_test_deps();
-plan tests => 43;
+plan tests => 44;
 
 Test::autofixup_strict(
     name => "single-line change gets autofixed",
@@ -20,10 +20,10 @@ Test::autofixup_strict(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/a b/a
+diff --git a a
 index da0f8ed..c1827f0 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1 +1 @@
 -a1
 +a2
@@ -40,10 +40,10 @@ Test::autofixup_strict(
     log_want => <<'EOF'
 fixup! commit1
 
-diff --git a/a b/a
+diff --git a a
 index 76642d4..2cdcdb0 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,2 +1,3 @@
  a1
 +a2
@@ -70,25 +70,25 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/a b/a
+diff --git a a
 index 76642d4..2cdcdb0 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,2 +1,3 @@
  a1
 +a2
  a3
-diff --git a/b b/b
+diff --git b b
 index c9c6af7..9b89cd5 100644
---- a/b
-+++ b/b
+--- b
++++ b
 @@ -1 +1,2 @@
  b1
 +b2
-diff --git a/c b/c
+diff --git c c
 index 16f9ec0..d0aaf97 100644
---- a/c
-+++ b/c
+--- c
++++ c
 @@ -1 +1,2 @@
 +c1
  c2
@@ -135,10 +135,10 @@ Test::autofixup_strict(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/a b/a
+diff --git a a
 index da0f8ed..0016606 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1 +1,2 @@
  a1
 +a2
@@ -154,16 +154,16 @@ Test::autofixup_strict(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/a b/a
+diff --git a a
 index da0f8ed..e69de29 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1 +0,0 @@
 -a1
-diff --git a/b b/b
+diff --git b b
 index 9b89cd5..e6bfff5 100644
---- a/b
-+++ b/b
+--- b
++++ b
 @@ -1,2 +1 @@
 -b1
  b2
@@ -190,10 +190,10 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit1
 
-diff --git a/a b/a
+diff --git a a
 index 125d560..cc1aa32 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,3 +1,3 @@
 -a1
 -a2a
@@ -230,10 +230,10 @@ Test::autofixup_strict(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/a b/a
+diff --git a a
 index c1827f0..b792f74 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1 +1,2 @@
  a2
 +a3
@@ -249,10 +249,10 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/a b/a
+diff --git a a
 index 0016606..da0f8ed 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,2 +1 @@
  a1
 -a2
@@ -279,10 +279,10 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit1
 
-diff --git a/a b/a
+diff --git a a
 index 0016606..a0ef52c 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,2 +1,2 @@
  a1
 -a2
@@ -304,10 +304,10 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/sub/a b/sub/a
+diff --git sub/a sub/a
 index da0f8ed..0016606 100644
---- a/sub/a
-+++ b/sub/a
+--- sub/a
++++ sub/a
 @@ -1 +1,2 @@
  a1
 +a2
@@ -322,10 +322,10 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/a b/a
+diff --git a a
 index c928c51..0016606 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,2 +1,2 @@
  a1
 -a2
@@ -346,10 +346,10 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit1
 
-diff --git a/a b/a
+diff --git a a
 index d9f44da..5b9ebcd 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -6,4 +6,4 @@ a5
  a6
  a7
@@ -358,10 +358,10 @@ index d9f44da..5b9ebcd 100644
 +a9.3
 fixup! commit2
 
-diff --git a/a b/a
+diff --git a a
 index 50de7e8..d9f44da 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,4 +1,4 @@
 -a1.2
 +a1.3
@@ -380,10 +380,29 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/a b/a
+diff --git a a
 index da0f8ed..c1827f0 100644
---- a/a
-+++ b/a
+--- a
++++ a
+@@ -1 +1 @@
+-a1
++a2
+EOF
+);
+
+Test::autofixup(
+    name => "commit can be written when diff.srcPrefix and diff.dstPrefix are ./",
+    topic_commits => [{a => "a1\n"}],
+    unstaged => {a => "a2\n"},
+    git_config => {'diff.srcPrefix' => './', 'diff.dstPrefix' => './'},
+    exit_code => 0,
+    log_want => <<'EOF'
+fixup! commit0
+
+diff --git a a
+index da0f8ed..c1827f0 100644
+--- a
++++ a
 @@ -1 +1 @@
 -a1
 +a2
@@ -399,10 +418,10 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/a b/a
+diff --git a a
 index da0f8ed..c1827f0 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1 +1 @@
 -a1
 +a2
@@ -418,10 +437,10 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit1
 
-diff --git a/b b/b
+diff --git b b
 index c9c6af7..e6bfff5 100644
---- a/b
-+++ b/b
+--- b
++++ b
 @@ -1 +1 @@
 -b1
 +b2
@@ -438,19 +457,19 @@ Test::autofixup(
     exit_code => 0,
     log_want => q{fixup! commit1
 
-diff --git a/b b/b
+diff --git b b
 index 253a619..6419a9e 100644
---- a/b
-+++ b/b
+--- b
++++ b
 @@ -1 +1 @@
 -b1.0
 +b1.1
 fixup! commit0
 
-diff --git a/a b/a
+diff --git a a
 index 5d11004..0054137 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,4 +1,4 @@
 -a1.0
 +a1.1
@@ -474,19 +493,19 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/a b/a
+diff --git a a
 index da0f8ed..c1827f0 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1 +1 @@
 -a1
 +a2
 EOF
     , unstaged_want => <<'EOF'
-diff --git a/b b/b
+diff --git b b
 index c9c6af7..e6bfff5 100644
---- a/b
-+++ b/b
+--- b
++++ b
 @@ -1 +1 @@
 -b1
 +b2
@@ -503,35 +522,35 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit1
 
-diff --git a/a b/a
+diff --git a a
 index da0f8ed..c1827f0 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1 +1 @@
 -a1
 +a2
 EOF
     , unstaged_want => <<'EOF'
-diff --git a/b b/b
+diff --git b b
 index c9c6af7..e6bfff5 100644
---- a/b
-+++ b/b
+--- b
++++ b
 @@ -1 +1 @@
 -b1
 +b2
-diff --git a/c b/c
+diff --git c c
 index ae93045..16f9ec0 100644
---- a/c
-+++ b/c
+--- c
++++ c
 @@ -1 +1 @@
 -c1
 +c2
 EOF
     , staged_want => <<'EOF'
-diff --git a/b b/b
+diff --git b b
 index c9c6af7..e6bfff5 100644
---- a/b
-+++ b/b
+--- b
++++ b
 @@ -1 +1 @@
 -b1
 +b2
@@ -546,10 +565,10 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git a/filename with spaces b/filename with spaces
+diff --git filename with spaces filename with spaces
 index da0f8ed..c1827f0 100644
---- a/filename with spaces	
-+++ b/filename with spaces	
+--- filename with spaces	
++++ filename with spaces	
 @@ -1 +1 @@
 -a1
 +a2
@@ -564,10 +583,10 @@ Test::autofixup(
     log_want => <<'EOF'
 fixup! commit0
 
-diff --git "a/ff\f nak\025 dq\" fei\351\243\236.txt" "b/ff\f nak\025 dq\" fei\351\243\236.txt"
+diff --git "ff\f nak\025 dq\" fei\351\243\236.txt" "ff\f nak\025 dq\" fei\351\243\236.txt"
 index da0f8ed..c1827f0 100644
---- "a/ff\f nak\025 dq\" fei\351\243\236.txt"	
-+++ "b/ff\f nak\025 dq\" fei\351\243\236.txt"	
+--- "ff\f nak\025 dq\" fei\351\243\236.txt"	
++++ "ff\f nak\025 dq\" fei\351\243\236.txt"	
 @@ -1 +1 @@
 -a1
 +a2
@@ -586,10 +605,10 @@ SKIP: {
         log_want => <<'EOF'
 fixup! commit0
 
-diff --git "a/hack\\.txt" "b/hack\\.txt"
+diff --git "hack\\.txt" "hack\\.txt"
 index da0f8ed..c1827f0 100644
---- "a/hack\\.txt"
-+++ "b/hack\\.txt"
+--- "hack\\.txt"
++++ "hack\\.txt"
 @@ -1 +1 @@
 -a1
 +a2

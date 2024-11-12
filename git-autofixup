@@ -100,23 +100,16 @@ sub parse_hunks {
 # For details about exactly what gets quoted, see the sq_lookup array in
 # git/quote.c.
 #
-# Also, remove the side-marker prefix, by default `a/` or `b/`.
+# Assume --no-prefix or similar has been used and the diff doesn't include
+# src/dst prefixes.
 sub dequote_diff_filename {
     $_ = shift;
-
     s/\t$//m;  # Remove trailing tab.
-
     if (startswith($_, '"')) {
         s/^"|"$//gm;  # Remove surrounding quotes.
         # Replace octal and control character escapes.
         s/\\((?:\d{3})|(?:[abtnvfr"\\]))/"qq(\\$1)"/eeg;
     }
-
-    # Remove prefix.
-    # a/b by default, or (i)ndex (w)orktree (c)ommit (o)bject if
-    # diff.mnemonicPrefix is set.
-    s#^[abiwco]/##;
-
     return $_;
 }
 
@@ -482,7 +475,7 @@ sub blame {
 
 sub diff_hunks {
     my $num_context_lines = shift;
-    my @cmd = git_cmd(qw(-c diff.noprefix=false diff --no-ext-diff --ignore-submodules), "-U$num_context_lines");
+    my @cmd = git_cmd(qw(diff --no-prefix --no-ext-diff --ignore-submodules), "-U$num_context_lines");
     if (is_index_dirty()) {
         push @cmd, "--cached";
     }
@@ -632,9 +625,9 @@ sub create_temp_index {
     $ENV{GIT_INDEX_FILE} = $tempfile->filename();
 
     # Remove any staged changes from the new index - we want to turn them into fixup commits.
-    my $index_changes = qx(git diff-index --patch --no-ext-diff --ignore-submodules --cached HEAD);
+    my $index_changes = qx(git diff-index --patch --no-prefix --no-ext-diff --ignore-submodules --cached HEAD);
     die "git diff-index: " . child_error_desc($?) if $?;
-    open my $fh, '|-', git_cmd(qw(apply --cached --whitespace=nowarn --reverse -)) or die "run git apply: $!\n";
+    open my $fh, '|-', git_cmd(qw(apply -p0 --cached --whitespace=nowarn --reverse -)) or die "run git apply: $!\n";
     print $fh $index_changes;
     close $fh or die "git apply: " . child_error_desc($?) . "\n";
 

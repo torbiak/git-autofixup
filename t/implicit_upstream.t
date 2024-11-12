@@ -32,10 +32,10 @@ plan tests => 4;
         fixup_log => <<'EOF',
 fixup! commit1
 
-diff --git a/a b/a
+diff --git a a
 index 8737a60..ba81a56 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,3 +1,3 @@
 -a1.1
 -a2
@@ -83,17 +83,21 @@ EOF
 #  \
 #   A--B--C  topic
 #
-{
+SKIP: {
     my $name = 'interactive rebase onto upstream';
+
+    if (!Util::git_version_gte('1.7.8')) {
+        skip 'GIT_SEQUENCE_EDITOR only available in 1.7.8+', 1;
+    }
 
     my $wants = {
         fixup_log => <<'EOF',
 fixup! commit1
 
-diff --git a/a b/a
+diff --git a a
 index 8737a60..ba81a56 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,3 +1,3 @@
 -a1.1
 -a2
@@ -126,7 +130,7 @@ EOF
         # Start an interactive rebase to edit commit B (which'll have commit2
         # in its message).
         local $ENV{GIT_SEQUENCE_EDITOR} = q(perl -i -pe "/commit2/ && s/^pick/edit/");
-        Util::run("git rebase -q -i $upstream 2>/dev/null");
+        Util::run("git rebase -i $upstream 2>/dev/null 1>&2");
         Util::run(qw(git reset HEAD^));
 
         my $upstreams = Autofixup::find_merge_bases();
@@ -171,10 +175,10 @@ SKIP: {
         fixup_log => <<'EOF',
 fixup! commit2
 
-diff --git a/a b/a
+diff --git a a
 index 8737a60..472f448 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,3 +1,3 @@
  a1.1
 -a2
@@ -260,19 +264,19 @@ EOF
         fixup_log => <<'EOF',
 fixup! commit2
 
-diff --git a/a b/a
+diff --git a a
 index 8737a60..472f448 100644
---- a/a
-+++ b/a
+--- a
++++ a
 @@ -1,3 +1,3 @@
  a1.1
 -a2
 +a2.1
  a3
-diff --git a/b b/b
+diff --git b b
 index 0ef8a8e..b1710a1 100644
---- a/b
-+++ b/b
+--- b
++++ b
 @@ -1,3 +1,3 @@
  b1.1
 -b2

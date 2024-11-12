@@ -118,7 +118,7 @@ sub commit_if_dirty {
 
 sub log_since {
     my ($self, $revision) = @_;
-    my $log = qx{git -c diff.noprefix=false log -p --format=%s ${revision}..};
+    my $log = qx{git log --no-prefix -p --format=%s ${revision}..};
     if ($? != 0) {
         croak "git log: $!\n";
     }
@@ -127,7 +127,7 @@ sub log_since {
 
 sub diff {
     my ($self, $revision) = @_;
-    my $diff = qx{git -c diff.noprefix=false diff ${revision}};
+    my $diff = qx{git diff --no-prefix ${revision}};
     if ($? != 0) {
         croak "git diff $!\n";
     }

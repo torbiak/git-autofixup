@@ -1,0 +1,37 @@
+#!/bin/bash
+# Run tests with a version of git built from source.
+#
+# To use this:
+# - clone the git repo
+# - checkout your desired version
+# - Build without unnecessary optional features:
+#
+#     make configure &&
+#     ./configure --without-openssl --without-curl --without-expat --without-python --without-tcltk &&
+#     make
+#
+# - Run this script and point it at the cloned repo that now contains git binaries
+
+set -euo pipefail
+
+usage='prove-with-git-from-source [-h] <dir>'
+while getopts 'h' opt; do
+    case "$opt" in
+    h) echo "$usage"; exit 0;;
+    *) exit 1;;
+    esac
+done
+shift $((OPTIND - 1))
+if [[ "$#" -ne 1 ]]; then
+    echo "$usage" >&2
+    exit 1
+fi
+git_src_dir=$1
+
+export GIT_EXEC_PATH=$git_src_dir
+export GIT_TEMPLATE_DIR=$git_src_dir/templates
+export PATH=$git_src_dir:$PATH
+
+git version
+
+prove -l t
