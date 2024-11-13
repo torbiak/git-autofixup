@@ -5,6 +5,7 @@ LICENSE
 Makefile.PL
 MANIFEST
 META.yml
+prove-with-git-from-source
 README.pod
 t/autofixup.t
 t/capture.t
