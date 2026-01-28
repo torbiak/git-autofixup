@@ -24,7 +24,7 @@ my @STRICTNESS_LEVELS = (
 );
 
 my $usage =<<'END';
-usage: git-autofixup [<options>] [<revision>]
+usage: git-autofixup [<options>] [<revision>] [--] [<path>...]
 
 -h                 show usage
 --help             show manpage
@@ -475,9 +475,13 @@ sub blame {
 
 sub diff_hunks {
     my $num_context_lines = shift;
+    my @files = @_;
     my @cmd = git_cmd(qw(diff --no-prefix --no-ext-diff --ignore-submodules), "-U$num_context_lines");
     if (is_index_dirty()) {
         push @cmd, "--cached";
+    }
+    if (@files) {
+        push @cmd, '--', @files;
     }
     open(my $fh, '-|', @cmd) or die "run git diff: $!";
     my @hunks = parse_hunks($fh, keep_lines => 1);
@@ -671,6 +675,18 @@ sub main {
     my $dryrun;
     my $use_detailed_exit_codes;
 
+    # Before GetOptions processes args, count non-option arguments before --
+    # This allows to determine if a revision was specified when -- is used
+    my $args_before_separator = 0;
+    my $found_separator = 0;
+    for my $arg (@ARGV) {
+        if ($arg eq '--') {
+            $found_separator = 1;
+            last;
+        }
+        $args_before_separator++ unless $arg =~ /^-/;
+    }
+
     GetOptions(
         'h' => \$help,
         'help' => \$man,
@@ -712,6 +728,34 @@ EOF
 
     # "upstream" revisions as 40 byte SHA1 hex hashes.
     my @upstreams = ();
+    my @files = ();
+
+    # Parse arguments: [<revision>] [-- <path>...] or [<revision>] [<path>...]
+    # Note: GetOptions removes the -- separator, but we counted args before it
+
+    if ($found_separator && $args_before_separator == 0) {
+        # Original command was like: git-autofixup [opts] -- file1 file2
+        # All remaining args are files, no revision specified
+        @files = @ARGV;
+        @ARGV = ();
+    } elsif ($found_separator && $args_before_separator == 1) {
+        # Original command was like: git-autofixup [opts] rev -- file1 file2
+        # First arg is revision, rest are files
+        my $rev = shift @ARGV;
+        @files = @ARGV;
+        @ARGV = ($rev);
+    }
+    if (!$found_separator && @ARGV >=1) {
+		# Original command was like: git-autofixup [opts] rev file1 file2
+        if (-e $ARGV[0]) {
+            @files = @ARGV;
+            @ARGV = ();
+        } else {
+            @files = @ARGV[1 .. $#ARGV];
+            @ARGV = ($ARGV[0]);
+        }
+    }
+
     if (@ARGV == 1) {
         my $raw_upstream = shift @ARGV;
         my $upstream = rev_parse("${raw_upstream}^{commit}");
@@ -737,7 +781,7 @@ EOF
     my $toplevel = toplevel_dir();
     chdir $toplevel or die "cd to toplevel: $!\n";
 
-    my $hunks = diff_hunks($num_context_lines);
+    my $hunks = diff_hunks($num_context_lines, @files);
     my $summary_for = summary_for_commits(@upstreams);
     my $alias_for = sha_aliases($summary_for);
     my $grafts_file = create_grafts_file(@upstreams);
@@ -789,13 +833,15 @@ App::Git::Autofixup - create fixup commits for topic branches
 
 =head1 SYNOPSIS
 
-    git-autofixup [<options>] [<revision>]
+    git-autofixup [<options>] [<revision>] [--] [<path>...]
 
 =head1 DESCRIPTION
 
 F<git-autofixup> parses hunks of changes in the working directory out of C<git diff> output and uses C<git blame> to assign those hunks to commits in C<E<lt>revisionE<gt>..HEAD>, which will typically represent a topic branch, and then creates fixup commits to be used with C<git rebase --interactive --autosquash>. It is assumed that hunks near changes that were previously committed to the topic branch are related. C<E<lt>revisionE<gt>> defaults to C<git merge-base --fork-point HEAD @{upstream} || git merge-base HEAD @{upstream}>, but this will only work if the current branch has an upstream/tracking branch. See C<git help revisions> for info about how to specify revisions.
 
 If any changes have been staged to the index using C<git add>, then F<git-autofixup> will only consider staged hunks when trying to create fixup commits. A temporary index is used to create any resulting commits.
+
+If one or more paths are specified, only changes to those files will be considered. The C<--> separator between the revision and paths is optional.
 
 By default a hunk will be included in a fixup commit if all the lines in the hunk's context blamed on topic branch commits refer to the same commit, so there's no ambiguity about which commit the hunk corresponds to. If there is ambiguity the assignment behaviour used under C<--strict 1> will be used to attempt to resolve it. If C<--strict 1> is given the same topic branch commit must be blamed for every removed line and at least one of the lines adjacent to each added line, and added lines must not be adjacent to lines blamed on other topic branch commits. All the same restrictions apply when C<--strict 2> is given, but each added line must be surrounded by lines blamed on the same topic branch commit.
 

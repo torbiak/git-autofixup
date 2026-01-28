@@ -42,7 +42,8 @@ sub autofixup_strict {
 # log_want: expected log output for new fixup commited
 # staged_want: expected log output for the staging area
 # unstaged_want: expected diff output for the working tree
-# autofixup_opts: command-line options to pass thru to autofixup
+# autofixup_opts: command-line options to pass thru to autofixup (before revision)
+# autofixup_args: additional arguments to pass after revision (i.e. file paths)
 # git_config: hashref of git config key/value pairs
 #
 # The upstream_commits and topic_commits arguments are heterogeneous lists of
@@ -64,6 +65,7 @@ sub autofixup {
     my $unstaged_want = $args{unstaged_want};
     my $exit_code_want = $args{exit_code};
     my $autofixup_opts = $args{autofixup_opts} || [];
+    my $autofixup_args = $args{autofixup_args} || [];
     push @{$autofixup_opts}, '--exit-code';
     my $git_config = $args{git_config} || {};
     if (!$upstream_commits && !$topic_commits) {
@@ -99,7 +101,7 @@ sub autofixup {
         $repo->write_change($unstaged);
 
         Util::run('git', '--no-pager',  'log', "--format='%h %s'", "${upstream_rev}..");
-        my $exit_code_got = $repo->autofixup(@{$autofixup_opts}, $upstream_rev);
+        my $exit_code_got = $repo->autofixup(@{$autofixup_opts}, $upstream_rev, @{$autofixup_args});
 
         my $ok = Util::exit_code_ok(want => $exit_code_want, got => $exit_code_got);
         my $wants = {
