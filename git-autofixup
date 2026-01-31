@@ -675,17 +675,21 @@ sub main {
     my $dryrun;
     my $use_detailed_exit_codes;
 
-    # Before GetOptions processes args, count non-option arguments before --
-    # This allows to determine if a revision was specified when -- is used
-    my $args_before_separator = 0;
-    my $found_separator = 0;
+    my $raw_upstream;
+    my @files = ();
+
+    my $found_option_terminator = 0;
+    my @new_argv = ();
     for my $arg (@ARGV) {
-        if ($arg eq '--') {
-            $found_separator = 1;
-            last;
+        if ($found_option_terminator) {
+            push @files, $arg;
+        } elsif ($arg eq '--') {
+            $found_option_terminator = 1;
+        } else {
+            push @new_argv, $arg;
         }
-        $args_before_separator++ unless $arg =~ /^-/;
     }
+    @ARGV = @new_argv;
 
     GetOptions(
         'h' => \$help,
@@ -698,6 +702,11 @@ sub main {
         'gitopt|g=s' => \@GIT_OPTIONS,
         'exit-code' => \$use_detailed_exit_codes,
     ) or return 1;
+
+    if (@ARGV) {
+        $raw_upstream = shift @ARGV;
+        @files = (@ARGV, @files);
+    }
     if ($help) {
         print $usage;
         return 0;
@@ -728,36 +737,8 @@ EOF
 
     # "upstream" revisions as 40 byte SHA1 hex hashes.
     my @upstreams = ();
-    my @files = ();
 
-    # Parse arguments: [<revision>] [-- <path>...] or [<revision>] [<path>...]
-    # Note: GetOptions removes the -- separator, but we counted args before it
-
-    if ($found_separator && $args_before_separator == 0) {
-        # Original command was like: git-autofixup [opts] -- file1 file2
-        # All remaining args are files, no revision specified
-        @files = @ARGV;
-        @ARGV = ();
-    } elsif ($found_separator && $args_before_separator == 1) {
-        # Original command was like: git-autofixup [opts] rev -- file1 file2
-        # First arg is revision, rest are files
-        my $rev = shift @ARGV;
-        @files = @ARGV;
-        @ARGV = ($rev);
-    }
-    if (!$found_separator && @ARGV >=1) {
-		# Original command was like: git-autofixup [opts] rev file1 file2
-        if (-e $ARGV[0]) {
-            @files = @ARGV;
-            @ARGV = ();
-        } else {
-            @files = @ARGV[1 .. $#ARGV];
-            @ARGV = ($ARGV[0]);
-        }
-    }
-
-    if (@ARGV == 1) {
-        my $raw_upstream = shift @ARGV;
+    if ($raw_upstream) {
         my $upstream = rev_parse("${raw_upstream}^{commit}");
         push @upstreams, $upstream;
     } else {
