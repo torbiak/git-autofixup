@@ -115,9 +115,12 @@ sub upstreams_ok {
 # Parameters:
 # - a Repo object
 # - a SHA for the last topic branch commit before any fixups were made
-# - a hashref of `git log` outputs, for `fixups`, `staged`, and `unstaged`. If
-#   `staged` isn't given, then it's assumed that there shouldn't be any staged
-#   changes.
+# - a hashref of expected outputs, with the following keys. If fixup_log or
+#   unstaged are undef, then that check is skipped, but if staged=undef we
+#   check that there are no staged changes.
+#       - fixup_log: `git log` output of the fixup commits
+#       - staged: `git diff --cached` output
+#       - unstaged: `git diff` output
 sub repo_state_ok {
     my ($repo, $pre_fixup_rev, $wants) = @_;
     my $ok = 1;

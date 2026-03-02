@@ -40,7 +40,7 @@ sub autofixup_strict {
 # unstaged: sub or hashref of working directory changes
 # staged: sub or hashref of index changes
 # log_want: expected log output for new fixup commited
-# staged_want: expected log output for the staging area
+# staged_want: expected diff output for the staging area
 # unstaged_want: expected diff output for the working tree
 # autofixup_opts: command-line options to pass thru to autofixup (before revision)
 # autofixup_args: additional arguments to pass after revision (i.e. file paths)
