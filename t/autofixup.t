@@ -9,7 +9,7 @@ require './t/test.pl';
 require './t/util.pl';
 
 Util::check_test_deps();
-plan tests => 49;
+plan tests => 50;
 
 Test::autofixup_strict(
     name => "single-line change gets autofixed",
@@ -714,7 +714,7 @@ Test::autofixup(
     unstaged => {a => "a2\n", b => "b2\n"},
     autofixup_args => ['--', 'a'],
     exit_code => 0,
-    log_want => <<'EXPECTED'
+    log_want => <<'EOF'
 fixup! commit0
 
 diff --git a a
@@ -724,5 +724,34 @@ index da0f8ed..c1827f0 100644
 @@ -1 +1 @@
 -a1
 +a2
-EXPECTED
+EOF
+);
+
+Test::autofixup(
+    name => 'file filtering with staged files',
+    topic_commits => [{a => "a1\n", b => "b1\n"}],
+    staged => {a => "a2\n", b => "b2\n"},
+    unstaged => {},
+    autofixup_args => ['--', 'a'],
+    exit_code => 0,
+    staged_want => <<'EOF',
+diff --git b b
+index c9c6af7..e6bfff5 100644
+--- b
++++ b
+@@ -1 +1 @@
+-b1
++b2
+EOF
+    log_want => <<'EOF'
+fixup! commit0
+
+diff --git a a
+index da0f8ed..c1827f0 100644
+--- a
++++ a
+@@ -1 +1 @@
+-a1
++a2
+EOF
 );
