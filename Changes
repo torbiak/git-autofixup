@@ -1,5 +1,6 @@
-# 0.004008
-- Allow to specify paths on the command line to limit fixup commits to these files only
+# 0.005000
+
+- New feature: give paths on the command line to limit fixup commits to those files only. Thanks to Ivan Shapovalov for the idea and Daniel Lange for the implementation.
 
 # 0.004007
 
